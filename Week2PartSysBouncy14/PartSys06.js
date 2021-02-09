@@ -485,23 +485,22 @@ PartSys.prototype.initSpringPair = function() {
   for(i=0; i<this.forceList.length; i++) {
     console.log("CForceList[",i,"]");
     this.forceList[i].printMe();
-    }                   
-    /*
+  }                   
+    
   // Create & init all constraint-causing objects-------------------------------
   var cTmp = new CLimit();      // creat constraint-causing object, and
   cTmp.hitType = HIT_BOUNCE_VEL;  // set how particles 'bounce' from its surface,
-  cTmp.limitType = LIM_VOL;       // confine particles inside axis-aligned 
+  cTmp.limitType = LIM_ANCHOR;       // anchor 1 particle 
                                   // rectangular volume that
-  cTmp.targFirst = 0;             // applies to ALL particles; starting at 0 
-  cTmp.partCount = -1;            // through all the rest of them.
-  cTmp.xMin = -1.0; cTmp.xMax = 1.0;  // box extent:  +/- 1.0 box at origin
-  cTmp.yMin = -1.0; cTmp.yMax = 1.0;
-  cTmp.zMin = -1.0; cTmp.zMax = 1.0;
-  cTmp.Kresti = 1.0;              // bouncyness: coeff. of restitution.
-                                  // (and IGNORE all other CLimit members...)
+  cTmp.e1 = 0;             // applies to ALL particles; starting at 0 !!!!ADJUST WHICH TO ANCHOR
+  cTmp.partCount = 1;            // through all the rest of them.
+  cTmp.xMin = 2.0;
+  cTmp.yMin = 0.0;
+  cTmp.zMin = 0.0;
+
   this.limitList.push(cTmp);      // append this 'box' constraint object to the
                                   // 'limitList' array of constraint-causing objects.      
-                                  */                          
+                                                      
   // Report:
   console.log("PartSys.initBouncy2D() created PartSys.limitList[] array of ");
   console.log("\t\t", this.limitList.length, "CLimit objects.");
@@ -660,7 +659,7 @@ PartSys.prototype.initSpringRope = function(count) {
   fTmp.forceType = F_SPRING;      // set it to earth gravity, and
   fTmp.e1 = 0;
   fTmp.e2 = 1;
-  fTmp.K_spring = 2;
+  fTmp.K_spring = 3;
   fTmp.K_springDamp = 0.1;
   fTmp.K_restLength = 2;
                                   // (and IGNORE all other Cforcer members...)
@@ -1164,6 +1163,15 @@ PartSys.prototype.doConstraints = function(sNow, sNext, cList) {
       // m and mmax are now correctly initialized; use them!  
     //......................................Apply limit specified by limitType 
     switch(cList[k].limitType) {    // what kind of limit should we apply?
+      case LIM_ANCHOR:
+        this.s2[cList[k].e1 * PART_MAXVAR + PART_XPOS] = cList[k].xMin;
+        this.s2[cList[k].e1 * PART_MAXVAR + PART_YPOS] = cList[k].yMin;
+        this.s2[cList[k].e1 * PART_MAXVAR + PART_ZPOS] = cList[k].zMin;
+        this.s2[cList[k].e1 * PART_MAXVAR + PART_XVEL] = 0.0;
+        this.s2[cList[k].e1 * PART_MAXVAR + PART_YVEL] = 0.0;
+        this.s2[cList[k].e1 * PART_MAXVAR + PART_ZVEL] = 0.0;
+        
+        break;
       case LIM_VOL:     // The axis-aligned rectangular volume specified by
                         // cList[k].xMin,xMax,yMin,yMax,zMin,zMax keeps
                         // particles INSIDE if xMin<xMax, yMin<yMax, zMin<zMax
