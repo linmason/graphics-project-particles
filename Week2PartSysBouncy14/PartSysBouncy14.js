@@ -228,7 +228,7 @@ function main() {
   //}
 
   // Initialize Particle systems:
-  //g_partA.initBouncy2D(gl, 200);        // create a 2D bouncy-ball system where
+  g_partA.initBouncy2D(gl, 200);        // create a 2D bouncy-ball system where
                                     // 2 particles bounce within -0.9 <=x,y<0.9
                                     // and z=0.
   g_partB.initSpringPair(gl);
@@ -241,7 +241,7 @@ function main() {
 
   //gl.uniformMatrix4fv(g_ModelMatLoc, false, g_ModelMat.elements);
 
-  //printControls(); 	// Display (initial) particle system values as text on webpage
+  printControls(); 	// Display (initial) particle system values as text on webpage
 	
   // Quick tutorial on synchronous, real-time animation in JavaScript/HTML-5: 
   //  	http://creativejs.com/resources/requestanimationframe/
@@ -389,11 +389,12 @@ function drawAll() {
 // -- To learn more, see: 
 // https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/getContext
 
-worldBox.switchToMe();  // Set WebGL to render from this VBObox.
-worldBox.adjust(g_ModelMat);      // Send new values for uniforms to the GPU, and
-worldBox.draw();        // draw our VBO's contents using our shaders.
-// update particle system state? 
-  if(  g_partA.runMode > 1) {					// 0=reset; 1= pause; 2=step; 3=run
+  worldBox.switchToMe();  // Set WebGL to render from this VBObox.
+  worldBox.adjust(g_ModelMat);      // Send new values for uniforms to the GPU, and
+  worldBox.draw();        // draw our VBO's contents using our shaders.
+
+  //--------------------- first particle system update
+  if(g_partA.runMode > 1) {					// 0=reset; 1= pause; 2=step; 3=run
     // YES! advance particle system(s) by 1 timestep.
 		if(g_partA.runMode == 2) { // (if runMode==2, do just one step & pause)
 		  g_partA.runMode=1;	
@@ -407,31 +408,27 @@ worldBox.draw();        // draw our VBO's contents using our shaders.
     //==========================================    
 		// Make our 'bouncy-ball' move forward by one timestep, but now the 's' key 
 		// will select which kind of solver to use by changing g_partA.solvType:
-    /*g_partA.applyForces(g_partA.s1, g_partA.forceList);  // find current net force on each particle
+    g_partA.applyForces(g_partA.s1, g_partA.forceList);  // find current net force on each particle
     g_partA.dotFinder(g_partA.s1dot, g_partA.s1); // find time-derivative s1dot from s1;
     g_partA.solver();         // find s2 from s1 & related states.
-    g_partA.doConstraints();  // Apply all constraints.  s2 is ready!
+    g_partA.doConstraints(g_partA.s1, g_partA.s2, g_partA.limitList);  // Apply all constraints.  s2 is ready!
 
   	g_partA.render(g_ModelMat);         // transfer current state to VBO, set uniforms, draw it!
 
     g_partA.swap();           // Make s2 the new current state s1.s
-*/
-    //===========================================
-
-    
 
     //===========================================
 	  }
 	else {    // runMode==0 (reset) or ==1 (pause): re-draw existing particles.
-	  //g_partA.render();
+	  g_partA.render();
 	  }
 
+  //--------------- Second Particle System Update
   if (g_partB.runMode > 1) {
     if (g_partB.runMode == 2) {
       g_partB.runMode=1;
     }
 
-    // Second Particle System Update
     g_partB.applyForces(g_partB.s1, g_partB.forceList);  // find current net force on each particle
     g_partB.dotFinder(g_partB.s1dot, g_partB.s1); // find time-derivative s1dot from s1;
     g_partB.solver();         // find s2 from s1 & related states.
@@ -447,7 +444,7 @@ worldBox.draw();        // draw our VBO's contents using our shaders.
   else {
     g_partB.render(g_ModelMat);
   }
-	//printControls();		// Display particle-system status on-screen. 
+	printControls();		// Display particle-system status on-screen. 
                       // Report mouse-drag totals since last re-draw:
 	document.getElementById('MouseResult0').innerHTML=
 			'Mouse Drag totals (CVV coords):\t' + xMdragTot.toFixed(g_digits)+

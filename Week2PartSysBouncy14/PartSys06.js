@@ -1167,9 +1167,6 @@ PartSys.prototype.doConstraints = function(sNow, sNext, cList) {
         this.s2[cList[k].e1 * PART_MAXVAR + PART_XPOS] = cList[k].xMin;
         this.s2[cList[k].e1 * PART_MAXVAR + PART_YPOS] = cList[k].yMin;
         this.s2[cList[k].e1 * PART_MAXVAR + PART_ZPOS] = cList[k].zMin;
-        this.s2[cList[k].e1 * PART_MAXVAR + PART_XVEL] = 0.0;
-        this.s2[cList[k].e1 * PART_MAXVAR + PART_YVEL] = 0.0;
-        this.s2[cList[k].e1 * PART_MAXVAR + PART_ZVEL] = 0.0;
         
         break;
       case LIM_VOL:     // The axis-aligned rectangular volume specified by
