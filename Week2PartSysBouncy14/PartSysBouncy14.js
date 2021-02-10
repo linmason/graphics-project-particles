@@ -50,61 +50,6 @@
 //        g_partA.limitList() to implement the box that holds our particles..
 
 //==============================================================================
-// Vertex shader program:
-var VSHADER_SOURCE =
-  'precision mediump float;\n' +				// req'd in OpenGL ES if we use 'float'
-  //
-  'uniform   int u_runMode; \n' +					// particle system state: 
-  'uniform mat4 u_ModelMat;\n' +												// 0=reset; 1= pause; 2=step; 3=run
-  'attribute vec4 a_Position;\n' +
-  'varying   vec4 v_Color; \n' +
-  'void main() {\n' +
-  '  gl_PointSize = 20.0;\n' +            // TRY MAKING THIS LARGER...
-  '	 gl_Position = u_ModelMat * a_Position; \n' +	
-	// Let u_runMode determine particle color:
-  '  if(u_runMode == 0) { \n' +
-	'	   v_Color = vec4(1.0, 0.0, 0.0, 1.0);	\n' +		// red: 0==reset
-	'  	 } \n' +
-	'  else if(u_runMode == 1) {  \n' +
-	'    v_Color = vec4(1.0, 1.0, 0.0, 1.0); \n' +	// yellow: 1==pause
-	'    }  \n' +
-	'  else if(u_runMode == 2) { \n' +    
-	'    v_Color = vec4(1.0, 1.0, 1.0, 1.0); \n' +	// white: 2==step
-  '    } \n' +
-	'  else { \n' +
-	'    v_Color = vec4(0.2, 1.0, 0.2, 1.0); \n' +	// green: >=3 ==run
-	'		 } \n' +
-  '} \n';
-// Each instance computes all the on-screen attributes for just one VERTEX,
-// supplied by 'attribute vec4' variable a_Position, filled from the 
-// Vertex Buffer Object (VBO) created in g_partA.init().
-
-//==============================================================================
-// Fragment shader program:
-var FSHADER_SOURCE =
-  'precision mediump float;\n' +
-  'varying vec4 v_Color; \n' +
-  'void main() {\n' +
-  '  float dist = distance(gl_PointCoord, vec2(0.5, 0.5)); \n' + // MASON change to vec3
-  '  if(dist < 0.5) { \n' +	
-	'  	gl_FragColor = vec4((1.0-2.0*dist)*v_Color.rgb, 1.0);\n' +
-	'  } else { discard; }\n' +
-  '}\n';
-// --Each instance computes all the on-screen attributes for just one PIXEL.
-// --Draw large POINTS primitives as ROUND instead of square.  HOW?
-//   See pg. 377 in  textbook: "WebGL Programming Guide".  The vertex shaders' 
-// gl_PointSize value sets POINTS primitives' on-screen width and height, and
-// by default draws POINTS as a square on-screen.  In the fragment shader, the 
-// built-in input variable 'gl_PointCoord' gives the fragment's location within
-// that 2D on-screen square; value (0,0) at squares' lower-left corner, (1,1) at
-// upper right, and (0.5,0.5) at the center.  The built-in 'distance()' function
-// lets us discard any fragment outside the 0.5 radius of POINTS made circular.
-// (CHALLENGE: make a 'soft' point: color falls to zero as radius grows to 0.5)?
-// -- NOTE! gl_PointCoord is UNDEFINED for all drawing primitives except POINTS;
-// thus our 'draw()' function can't draw a LINE_LOOP primitive unless we turn off
-// our round-point rendering.  
-// -- All built-in variables: http://www.opengl.org/wiki/Built-in_Variable_(GLSL)
-
 // Global Variables
 // =========================
 // Use globals to avoid needlessly complex & tiresome function argument lists.
@@ -779,13 +724,14 @@ function myKeyDown(kev) {
 	  console.log("r/R: soft/hard Reset");      // print on console,
       break;
 		case "KeyV":
-			if(g_partA.solvType == SOLV_EULER) g_partA.solvType = SOLV_OLDGOOD;  
-			else g_partA.solvType = SOLV_EULER;     
-      if(g_partB.solvType == SOLV_EULER) g_partB.solvType = SOLV_OLDGOOD;  
-      else g_partB.solvType = SOLV_EULER;     
+      var solvTypes = [SOLV_EULER, SOLV_MIDPOINT];
+      var solvIndex = solvTypes.indexOf(g_partB.solvType);
+      solvIndex = (solvIndex + 1) % solvTypes.length;
+      //g_partA.solvType = solvTypes[solvIndex];
+      g_partB.solvType = solvTypes[solvIndex];
 			document.getElementById('KeyDown').innerHTML =  
 			'myKeyDown() found v/V key. Switch solvers!';       // print on webpage.
-		  console.log("v/V: Change Solver:", g_partA.solvType); // print on console.
+		  console.log("v/V: Change Solver:", g_partB.solvType); // print on console.
 			break;
 		case "Space":
       g_partA.runMode = 2;
@@ -876,8 +822,44 @@ function printControls() {
 	var recipMin  = 1000.0 / g_timeStepMin;
 	var recipMax  = 1000.0 / g_timeStepMax; 
 	var solvTypeTxt;												// convert solver number to text:
-	if(g_partA.solvType==0) solvTypeTxt = 'Explicit--(unstable!)<br>';
-	                  else  solvTypeTxt = 'Implicit--(stable)<br>'; 
+	switch(g_partA.solvType) {
+    case 0:
+      solvTypeTxt = 'Explicit Euler(unstable!)<br>';
+      break;
+    case 1:
+      solvTypeTxt = 'Explicit Midpoint(unstable)<br>';
+      break;
+    case 2:
+      solvTypeTxt = 'Adams-Bashford<br>';
+      break;
+    case 3:
+      solvTypeTxt = 'RungeKutta<br>';
+      break;
+    case 4:
+      solvTypeTxt = 'Old Good Implicit Euler<br>';
+      break;
+    case 5:
+      solvTypeTxt = 'Implicit Euler<br>';
+      break;
+    case 6:
+      solvTypeTxt = 'Implicit Midpoint<br>';
+      break;
+    case 7:
+      solvTypeTxt = 'Implicit RungeKutta<br>';
+      break;
+    case 8:
+      solvTypeTxt = 'Verlet<br>';
+      break;
+    case 9:
+      solvTypeTxt = 'Velocity Verlet<br>';
+      break;
+    case 10:
+      solvTypeTxt = 'Leap Frog<br>';
+      break;
+    case 11:
+      solvTypeTxt = 'Max<br>';
+      break;
+  }
 	var bounceTypeTxt;											// convert bounce number to text
 	if(g_partA.bounceType==0) bounceTypeTxt = 'Velocity Reverse(no rest)<br>';
 	                     else bounceTypeTxt = 'Impulsive (will rest)<br>';

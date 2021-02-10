@@ -233,8 +233,10 @@ PartSys.prototype.initBouncy2D = function(gl, count) {
   // Create all state-variables-------------------------------------------------
   this.partCount = count;
   this.s1 =    new Float32Array(this.partCount * PART_MAXVAR);
+  this.sM =    new Float32Array(this.partCount * PART_MAXVAR);
   this.s2 =    new Float32Array(this.partCount * PART_MAXVAR);
   this.s1dot = new Float32Array(this.partCount * PART_MAXVAR);  
+  this.sMdot = new Float32Array(this.partCount * PART_MAXVAR);  
         // NOTE: Float32Array objects are zero-filled by default.
 
   // Create & init all force-causing objects------------------------------------
@@ -301,7 +303,7 @@ PartSys.prototype.initBouncy2D = function(gl, count) {
 										
   //--------------------------init Particle System Controls:
   this.runMode =  3;// Master Control: 0=reset; 1= pause; 2=step; 3=run
-  this.solvType = SOLV_OLDGOOD;// adjust by s/S keys.
+  this.solvType = SOLV_EULER;// adjust by s/S keys.
                     // SOLV_EULER (explicit, forward-time, as 
 										// found in BouncyBall03.01BAD and BouncyBall04.01badMKS)
 										// SOLV_OLDGOOD for special-case implicit solver, reverse-time, 
@@ -465,8 +467,10 @@ PartSys.prototype.initSpringPair = function() {
   this.partSysType = "SpringPair";
   this.partCount = 2;
   this.s1 =    new Float32Array(this.partCount * PART_MAXVAR);
+  this.sM =    new Float32Array(this.partCount * PART_MAXVAR);
   this.s2 =    new Float32Array(this.partCount * PART_MAXVAR);
   this.s1dot = new Float32Array(this.partCount * PART_MAXVAR);  
+  this.sMdot = new Float32Array(this.partCount * PART_MAXVAR);  
         // NOTE: Float32Array objects are zero-filled by default.
 
   // Create & init all force-causing objects------------------------------------
@@ -664,9 +668,12 @@ PartSys.prototype.initSpringRope = function(gl, count) {
   this.partSysType = "SpringRope";
   this.partCount = count;
   this.s1 =    new Float32Array(this.partCount * PART_MAXVAR);
+  this.sM =    new Float32Array(this.partCount * PART_MAXVAR);
   this.s2 =    new Float32Array(this.partCount * PART_MAXVAR);
   this.s1dot = new Float32Array(this.partCount * PART_MAXVAR);  
+  this.sMdot = new Float32Array(this.partCount * PART_MAXVAR);  
         // NOTE: Float32Array objects are zero-filled by default.
+
   this.init_pos = [[5,0,0], [4,0,0], [3,0,0], [2,0,0], [1,0,0], [0,0,0], [-1,0,0], [-2,0,0], [-3,0,0], [-4,0,0]];
   this.init_vel = [[0,0,0], [0,0,0], [0,0,0], [0,0,0], [0,0,0], [0,0,0], [0,0,0], [0,0,0], [0,0,0], [0,0,0]];
 
@@ -1080,37 +1087,37 @@ PartSys.prototype.render = function(g_ModelMat) {
 // such as s1dot, sM, sMdot, etc.) by the numerical integration method chosen
 // by PartSys.solvType.
 
-		switch(this.solvType)
-		{
-		  case SOLV_EULER://--------------------------------------------------------
-			// EXPLICIT or 'forward time' solver; Euler Method: s2 = s1 + h*s1dot
-      for(var n = 0; n < this.s1.length; n++) { // for all elements in s1,s2,s1dot;
-        this.s2[n] = this.s1[n] + this.s1dot[n] * (g_timeStep * 0.001); 
-        }
+	switch(this.solvType)
+	{
+	  case SOLV_EULER://--------------------------------------------------------
+		// EXPLICIT or 'forward time' solver; Euler Method: s2 = s1 + h*s1dot
+    for (var n = 0; n < this.s1.length; n++) { // for all elements in s1,s2,s1dot;
+      this.s2[n] = this.s1[n] + this.s1dot[n] * (g_timeStep * 0.001); 
+    }
 /* // OLD 'BAD' solver never stops bouncing:
-			// Compute new position from current position, current velocity, & timestep
-      var j = 0;  // i==particle number; j==array index for i-th particle
-      for(var i = 0; i < this.partCount; i += 1, j+= PART_MAXVAR) {
-    			this.s2[j + PART_XPOS] += this.s2[j + PART_XVEL] * (g_timeStep * 0.001);
-    			this.s2[j + PART_YPOS] += this.s2[j + PART_YVEL] * (g_timeStep * 0.001); 
-    			this.s2[j + PART_ZPOS] += this.s2[j + PART_ZVEL] * (g_timeStep * 0.001); 
-    			    			// -- apply acceleration due to gravity to current velocity:
-    			// 					 s2[PART_YVEL] -= (accel. due to gravity)*(timestep in seconds) 
-    			//									 -= (9.832 meters/sec^2) * (g_timeStep/1000.0);
-    			this.s2[j + PART_YVEL] -= this.grav*(g_timeStep*0.001);
-    			// -- apply drag: attenuate current velocity:
-    			this.s2[j + PART_XVEL] *= this.drag;
-    			this.s2[j + PART_YVEL] *= this.drag; 
-    			this.s2[j + PART_ZVEL] *= this.drag; 
-    	    }
+		// Compute new position from current position, current velocity, & timestep
+    var j = 0;  // i==particle number; j==array index for i-th particle
+    for(var i = 0; i < this.partCount; i += 1, j+= PART_MAXVAR) {
+  			this.s2[j + PART_XPOS] += this.s2[j + PART_XVEL] * (g_timeStep * 0.001);
+  			this.s2[j + PART_YPOS] += this.s2[j + PART_YVEL] * (g_timeStep * 0.001); 
+  			this.s2[j + PART_ZPOS] += this.s2[j + PART_ZVEL] * (g_timeStep * 0.001); 
+  			    			// -- apply acceleration due to gravity to current velocity:
+  			// 					 s2[PART_YVEL] -= (accel. due to gravity)*(timestep in seconds) 
+  			//									 -= (9.832 meters/sec^2) * (g_timeStep/1000.0);
+  			this.s2[j + PART_YVEL] -= this.grav*(g_timeStep*0.001);
+  			// -- apply drag: attenuate current velocity:
+  			this.s2[j + PART_XVEL] *= this.drag;
+  			this.s2[j + PART_YVEL] *= this.drag; 
+  			this.s2[j + PART_ZVEL] *= this.drag; 
+  	    }
 */
-		  break;
-		case SOLV_OLDGOOD://-------------------------------------------------------------------
-			// IMPLICIT or 'reverse time' solver, as found in bouncyBall04.goodMKS;
-			// This category of solver is often better, more stable, but lossy.
-			// -- apply acceleration due to gravity to current velocity:
-			//				  s2[PART_YVEL] -= (accel. due to gravity)*(g_timestep in seconds) 
-			//                  -= (9.832 meters/sec^2) * (g_timeStep/1000.0);
+	   break;
+	  case SOLV_OLDGOOD://-------------------------------------------------------------------
+		// IMPLICIT or 'reverse time' solver, as found in bouncyBall04.goodMKS;
+		// This category of solver is often better, more stable, but lossy.
+		// -- apply acceleration due to gravity to current velocity:
+		//				  s2[PART_YVEL] -= (accel. due to gravity)*(g_timestep in seconds) 
+		//                  -= (9.832 meters/sec^2) * (g_timeStep/1000.0);
       var j = 0;  // i==particle number; j==array index for i-th particle
       for(var i = 0; i < this.partCount; i += 1, j+= PART_MAXVAR) {
   			this.s2[j + PART_YVEL] -= this.grav*(g_timeStep*0.001);
@@ -1128,7 +1135,14 @@ PartSys.prototype.render = function(g_ModelMat) {
 			//	IT WORKS BEAUTIFULLY! much more stable much more often...
 		  break;
     case SOLV_MIDPOINT:         // Midpoint Method (see lecture notes)
-      console.log('NOT YET IMPLEMENTED: this.solvType==' + this.solvType);
+      for (var n = 0; n < this.s1.length; n++) {
+        this.sM[n] = this.s1[n] + (g_timeStep * 0.001)/2 * this.s1dot[n];
+      }
+      this.dotFinder(this.sMdot, this.sM);
+      for (var n = 0; n < this.s1.length; n++) {
+        this.s2[n] = this.s1[n] + (g_timeStep * 0.001) * this.sMdot[n];
+      }
+
       break;
     case SOLV_ADAMS_BASH:       // Adams-Bashforth Explicit Integrator
       console.log('NOT YET IMPLEMENTED: this.solvType==' + this.solvType);
@@ -1157,8 +1171,8 @@ PartSys.prototype.render = function(g_ModelMat) {
     default:
 			console.log('?!?! unknown solver: this.solvType==' + this.solvType);
 			break;
-		}
-		return;
+	}
+  return;
 }
 
 PartSys.prototype.doConstraints = function(sNow, sNext, cList) {
