@@ -236,14 +236,14 @@ PartSys.prototype.initBouncy2D = function(gl, count) {
         // NOTE: Float32Array objects are zero-filled by default.
 
   // Create & init all force-causing objects------------------------------------
-  var fTmp = new CForcer();       // create a force-causing object, and
+  /*var fTmp = new CForcer();       // create a force-causing object, and
   // earth gravity for all particles:
   fTmp.forceType = F_GRAV_E;      // set it to earth gravity, and
   fTmp.targFirst = 0;             // set it to affect ALL particles:
   fTmp.partCount = -1;            // (negative value means ALL particles)
                                   // (and IGNORE all other Cforcer members...)
   this.forceList.push(fTmp);      // append this 'gravity' force object to 
-                                  // the forceList array of force-causing objects.
+       */                           // the forceList array of force-causing objects.
   // drag for all particles:
   fTmp = new CForcer();           // create a NEW CForcer object 
                                   // (WARNING! until we do this, fTmp refers to
@@ -470,14 +470,24 @@ PartSys.prototype.initSpringPair = function() {
   var fTmp = new CForcer();       // create a force-causing object, and
   // earth gravity for all particles:
   fTmp.forceType = F_SPRING;      // set it to earth gravity, and
+  fTmp.targCount = 0;
   fTmp.e1 = 0;
   fTmp.e2 = 1;
-  fTmp.K_spring = 2;
+  fTmp.K_spring = 20.0;
   fTmp.K_springDamp = 0.1;
-  fTmp.K_restLength = 2;
+  fTmp.K_restLength = 2.0;
                                   // (and IGNORE all other Cforcer members...)
   this.forceList.push(fTmp);      // append this 'gravity' force object to 
                                   // the forceList array of force-causing objects.
+
+  var fTmp = new CForcer();       // create a force-causing object, and
+  // earth gravity for all particles:
+  fTmp.forceType = F_GRAV_E;      // set it to earth gravity, and
+  fTmp.targFirst = 1;             // set it to affect ALL particles:
+  fTmp.targCount = 1;            // (negative value means ALL particles)
+                                  // (and IGNORE all other Cforcer members...)
+  this.forceList.push(fTmp);      // append this 'gravity' force object to 
+                                  // the forceList array of force-causing objects.  
  
   // Report:
   console.log("PartSys.initSpringPair() created PartSys.forceList[] array of ");
@@ -507,7 +517,7 @@ PartSys.prototype.initSpringPair = function() {
 
   this.INIT_VEL =  0.15 * 60.0;   // initial velocity in meters/sec.
   this.drag = 0.985;// units-free air-drag (scales velocity); adjust by d/D keys
-  this.grav = 0;// gravity's acceleration(meter/sec^2); adjust by g/G keys.
+  this.grav = 9.832;// gravity's acceleration(meter/sec^2); adjust by g/G keys.
   this.resti = 1.0; // units-free 'Coefficient of Restitution' for 
                     // inelastic collisions.  Sets the fraction of momentum 
                     // (0.0 <= resti < 1.0) that remains after a ball 
@@ -530,8 +540,8 @@ PartSys.prototype.initSpringPair = function() {
 //  NOTE: s1,s2 are a Float32Array objects, zero-filled by default.
 // That's OK for most particle parameters, but these need non-zero defaults:
   // initial position and velocity
-  var init_pos = [[2,0,0], [-2,0,0]];
-  var init_vel = [[0,0,0], [0,0,0]];
+  this.init_pos = [[2,0,0], [-2,0,0]];
+  this.init_vel = [[0,0,0], [0,0,0]];
 
   var j = 0;  // i==particle number; j==array index for i-th particle
   for(var i = 0; i < this.partCount; i += 1, j+= PART_MAXVAR) {
@@ -539,15 +549,15 @@ PartSys.prototype.initSpringPair = function() {
                             // a 3D unit sphere centered at the origin.
     //all our bouncy-balls stay within a +/- 0.9 cube centered at origin; 
     // set random positions in a 0.1-radius ball centered at (-0.8,-0.8,-0.8)
-    this.s1[j + PART_XPOS] = init_pos[i][0]; 
-    this.s1[j + PART_YPOS] = init_pos[i][1];  
-    this.s1[j + PART_ZPOS] = init_pos[i][2];
+    this.s1[j + PART_XPOS] = this.init_pos[i][0]; 
+    this.s1[j + PART_YPOS] = this.init_pos[i][1];  
+    this.s1[j + PART_ZPOS] = this.init_pos[i][2];
     this.s1[j + PART_WPOS] =  1.0;      // position 'w' coordinate;
     this.roundRand(); // Now choose random initial velocities too:
-    this.s1[j + PART_XVEL] =  init_vel[i][0];
-    this.s1[j + PART_YVEL] =  init_vel[i][1];
-    this.s1[j + PART_ZVEL] =  init_vel[i][2];
-    this.s1[j + PART_MASS] =  1.0;      // mass, in kg.
+    this.s1[j + PART_XVEL] =  this.init_vel[i][0];
+    this.s1[j + PART_YVEL] =  this.init_vel[i][1];
+    this.s1[j + PART_ZVEL] =  this.init_vel[i][2];
+    this.s1[j + PART_MASS] =  0.05;      // mass, in kg.
     this.s1[j + PART_DIAM] =  2.0 + 10*Math.random(); // on-screen diameter, in pixels
     this.s1[j + PART_RENDMODE] = 0.0;
     this.s1[j + PART_AGE] = 30 + 100*Math.random();
@@ -848,8 +858,10 @@ PartSys.prototype.applyForces = function(s, fList) {
       }
     else if(fList[k].targCount > 0) {   // ?did CForcer say HOW MANY particles?
       // YES! force applies to 'targCount' particles starting with particle # m:
-      var tmp = fList[k].targCount;
-      if(tmp < mmax) mmax = tmp;    // (but MAKE SURE mmax doesn't get larger)
+      //var tmp = fList[k].targCount;
+      //mine::
+      var tmp = fList[k].targCount + fList[k].targFirst;
+      if(tmp <= mmax) mmax = tmp;    // (but MAKE SURE mmax doesn't get larger)
       else console.log("\n\n!!PartSys.applyForces() index error!!\n\n");
       }
       //console.log("m:",m,"mmax:",mmax);
@@ -920,13 +932,13 @@ PartSys.prototype.applyForces = function(s, fList) {
 
         var mag = xtmp*x_delt + ytmp*y_delt + ztmp*z_delt;
         mag *= fList[k].K_springDamp;
-        s[j1 + PART_X_FTOT] += - mag * x_delt
-        s[j1 + PART_Y_FTOT] += - mag * y_delt
-        s[j1 + PART_Z_FTOT] += - mag * z_delt
+        s[j1 + PART_X_FTOT] += - mag * x_delt / spring_dist
+        s[j1 + PART_Y_FTOT] += - mag * y_delt / spring_dist
+        s[j1 + PART_Z_FTOT] += - mag * z_delt / spring_dist
 
-        s[j2 + PART_X_FTOT] += mag * x_delt
-        s[j2 + PART_Y_FTOT] += mag * y_delt
-        s[j2 + PART_Z_FTOT] += mag * z_delt
+        s[j2 + PART_X_FTOT] += mag * x_delt / spring_dist
+        s[j2 + PART_Y_FTOT] += mag * y_delt / spring_dist
+        s[j2 + PART_Z_FTOT] += mag * z_delt / spring_dist
         
         //console.log("PartSys.applyForces(), fList[",k,"].forceType:", 
                                   //fList[k].forceType, "NOT YET IMPLEMENTED!!");

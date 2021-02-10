@@ -420,7 +420,7 @@ function drawAll() {
     //===========================================
 	  }
 	else {    // runMode==0 (reset) or ==1 (pause): re-draw existing particles.
-	  g_partA.render();
+	  g_partA.render(g_ModelMat);
 	  }
 
   //--------------- Second Particle System Update
@@ -718,7 +718,8 @@ function myKeyDown(kev) {
 			break;
     case "KeyR":    // r/R for RESET: 
       if(kev.shiftKey==false) {   // 'r' key: SOFT reset; boost velocity only
-  		  g_partA.runMode = 3;  // RUN!
+  		  //---- refresh partsys A
+        g_partA.runMode = 3;  // RUN!
         var j=0; // array index for particle i
         for(var i = 0; i < g_partA.partCount; i += 1, j+= PART_MAXVAR) {
           g_partA.roundRand();  // make a spherical random var.
@@ -734,7 +735,27 @@ function myKeyDown(kev) {
     			if(  g_partA.s2[j + PART_ZVEL] > 0.0) 
     			     g_partA.s2[j + PART_ZVEL] += 1.7 + 0.4*g_partA.randZ*g_partA.INIT_VEL; 
     			else g_partA.s2[j + PART_ZVEL] -= 1.7 + 0.4*g_partA.randZ*g_partA.INIT_VEL;
-    			}
+    		}
+
+        //---- refresh partsys B spring pair
+        g_partB.runMode = 3;  // RUN!
+        var init_pos = [[2,0,0], [-2,0,0]];
+        var init_vel = [[0,0,0], [0,0,0]];
+
+        var j = 0;  // i==particle number; j==array index for i-th particle
+        for(var i = 0; i < g_partB.partCount; i += 1, j+= PART_MAXVAR) {
+          g_partB.s2[j + PART_XPOS] = init_pos[i][0]; 
+          g_partB.s2[j + PART_YPOS] = init_pos[i][1];  
+          g_partB.s2[j + PART_ZPOS] = init_pos[i][2];
+          g_partB.s2[j + PART_WPOS] =  1.0;      // position 'w' coordinate;
+          g_partB.s2[j + PART_XVEL] =  init_vel[i][0];
+          g_partB.s2[j + PART_YVEL] =  init_vel[i][1];
+          g_partB.s2[j + PART_ZVEL] =  init_vel[i][2];
+          g_partB.s2[j + PART_MASS] =  1.0;      // mass, in kg.
+          g_partB.s2[j + PART_DIAM] =  2.0 + 10*Math.random(); // on-screen diameter, in pixels
+          g_partB.s2[j + PART_RENDMODE] = 0.0;
+          g_partB.s2[j + PART_AGE] = 30 + 100*Math.random();
+        }
       }
       else {      // HARD reset: position AND velocity, BOTH state vectors:
   		  g_partA.runMode = 0;			// RESET!
@@ -759,6 +780,8 @@ function myKeyDown(kev) {
 		case "KeyV":
 			if(g_partA.solvType == SOLV_EULER) g_partA.solvType = SOLV_OLDGOOD;  
 			else g_partA.solvType = SOLV_EULER;     
+      if(g_partB.solvType == SOLV_EULER) g_partB.solvType = SOLV_OLDGOOD;  
+      else g_partB.solvType = SOLV_EULER;     
 			document.getElementById('KeyDown').innerHTML =  
 			'myKeyDown() found v/V key. Switch solvers!';       // print on webpage.
 		  console.log("v/V: Change Solver:", g_partA.solvType); // print on console.
