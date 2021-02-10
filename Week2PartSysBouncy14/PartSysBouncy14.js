@@ -736,7 +736,8 @@ function myKeyDown(kev) {
     			     g_partA.s2[j + PART_ZVEL] += 1.7 + 0.4*g_partA.randZ*g_partA.INIT_VEL; 
     			else g_partA.s2[j + PART_ZVEL] -= 1.7 + 0.4*g_partA.randZ*g_partA.INIT_VEL;
     		}
-
+        g_partB.refresh = true;
+        /*
         //---- refresh partsys B spring pair
         g_partB.runMode = 3;  // RUN!
         var init_pos = [[2,0,0], [-2,0,0]];
@@ -755,7 +756,7 @@ function myKeyDown(kev) {
           g_partB.s2[j + PART_DIAM] =  2.0 + 10*Math.random(); // on-screen diameter, in pixels
           g_partB.s2[j + PART_RENDMODE] = 0.0;
           g_partB.s2[j + PART_AGE] = 30 + 100*Math.random();
-        }
+        }*/
       }
       else {      // HARD reset: position AND velocity, BOTH state vectors:
   		  g_partA.runMode = 0;			// RESET!

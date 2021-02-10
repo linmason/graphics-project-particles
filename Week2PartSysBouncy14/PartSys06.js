@@ -155,6 +155,8 @@ function PartSys() {
                                   // console.log(this.forceList[0]); prints hello.
   this.limitList = [];            // (empty) array to hold CLimit objects
                                   // for use by doContstraints()
+  this.refresh = false; // resets if true, set by key controls
+
   // Local version of model and MVP matrices
   this.MVPMatrix = new Matrix4();
   this.ModelMatrix = new Matrix4(); // Transforms CVV axes to model axes.
@@ -460,6 +462,7 @@ PartSys.prototype.initSpringPair = function() {
   '}\n';
 
   // Create all state-variables-------------------------------------------------
+  this.partSysType = "SpringPair";
   this.partCount = 2;
   this.s1 =    new Float32Array(this.partCount * PART_MAXVAR);
   this.s2 =    new Float32Array(this.partCount * PART_MAXVAR);
@@ -1140,7 +1143,33 @@ PartSys.prototype.doConstraints = function(sNow, sNext, cList) {
 // ==0 for simple velocity-reversal, as in all previous versions
 // ==1 for textbook's collision resolution method, which uses an 'impulse' 
 //          to cancel any velocity boost caused by falling below the floor.
-//    
+//
+  if (this.refresh) {
+    this.refresh = false;
+    if (this.partSysType == "SpringPair") {
+      var j = 0;  // i==particle number; j==array index for i-th particle
+      for(var i = 0; i < this.partCount; i += 1, j+= PART_MAXVAR) {
+        this.roundRand();       // set this.randX,randY,randZ to random location in 
+                                // a 3D unit sphere centered at the origin.
+        //all our bouncy-balls stay within a +/- 0.9 cube centered at origin; 
+        // set random positions in a 0.1-radius ball centered at (-0.8,-0.8,-0.8)
+        this.s1[j + PART_XPOS] = this.init_pos[i][0]; 
+        this.s1[j + PART_YPOS] = this.init_pos[i][1];  
+        this.s1[j + PART_ZPOS] = this.init_pos[i][2];
+        this.s1[j + PART_WPOS] =  1.0;      // position 'w' coordinate;
+        this.roundRand(); // Now choose random initial velocities too:
+        this.s1[j + PART_XVEL] =  this.init_vel[i][0];
+        this.s1[j + PART_YVEL] =  this.init_vel[i][1];
+        this.s1[j + PART_ZVEL] =  this.init_vel[i][2];
+        this.s1[j + PART_MASS] =  0.05;      // mass, in kg.
+        this.s1[j + PART_DIAM] =  2.0 + 10*Math.random(); // on-screen diameter, in pixels
+        this.s1[j + PART_RENDMODE] = 0.0;
+        this.s1[j + PART_AGE] = 30 + 100*Math.random();
+        //----------------------------
+        this.s2.set(this.s1);   // COPY contents of state-vector s1 to s2.
+      }
+    }
+  }
 
   for(var k = 0; k < cList.length; k++) {  // for every CLimit in cList array,
 //    console.log("cList[k].limitType:", cList[k].limitType);
