@@ -621,7 +621,7 @@ PartSys.prototype.initSpringPair = function() {
   // Set the initial values of all uniforms on GPU: (runMode set by keyboard)
   gl.uniform1i(this.u_runModeID, this.runMode);
 }
-PartSys.prototype.initSpringRope = function(count) { 
+PartSys.prototype.initSpringRope = function(gl, count) { 
 //==============================================================================
   this.VERT_SRC =
   'precision mediump float;\n' +        // req'd in OpenGL ES if we use 'float'
@@ -647,7 +647,7 @@ PartSys.prototype.initSpringRope = function(count) {
   '    v_Color = vec4(0.2, 1.0, 0.2, 1.0); \n' +  // green: >=3 ==run
   '    } \n' +
   '} \n';
-
+  
   //==============================================================================
   // Fragment shader program:
   this.FRAG_SRC =
@@ -661,23 +661,39 @@ PartSys.prototype.initSpringRope = function(count) {
   '}\n';
 
   // Create all state-variables-------------------------------------------------
-  this.partCount = 2;
+  this.partSysType = "SpringRope";
+  this.partCount = count;
   this.s1 =    new Float32Array(this.partCount * PART_MAXVAR);
   this.s2 =    new Float32Array(this.partCount * PART_MAXVAR);
-  this.s1dot = new Float32Array(this.partCount * PART_MAXVAR);
+  this.s1dot = new Float32Array(this.partCount * PART_MAXVAR);  
+        // NOTE: Float32Array objects are zero-filled by default.
+  this.init_pos = [[5,0,0], [4,0,0], [3,0,0], [2,0,0], [1,0,0], [0,0,0], [-1,0,0], [-2,0,0], [-3,0,0], [-4,0,0]];
+  this.init_vel = [[0,0,0], [0,0,0], [0,0,0], [0,0,0], [0,0,0], [0,0,0], [0,0,0], [0,0,0], [0,0,0], [0,0,0]];
 
   // Create & init all force-causing objects------------------------------------
+  for (var i = 0; i<(this.partCount - 1); i++) {
+    var fTmp = new CForcer();
+    // spring force for partCount -1 pairs:
+    fTmp.forceType = F_SPRING;
+    fTmp.targCount = 0;  // 0 for individual target particles
+    fTmp.e1 = i;
+    fTmp.e2 = i+1;
+    fTmp.K_spring = 20.0;
+    fTmp.K_springDamp = 0.1;
+    fTmp.K_restLength = 0.8;
+                                    // (and IGNORE all other Cforcer members...)
+    this.forceList.push(fTmp);      // append this 'gravity' force object to 
+                                    // the forceList array of force-causing objects.
+  }
+
   var fTmp = new CForcer();       // create a force-causing object, and
   // earth gravity for all particles:
-  fTmp.forceType = F_SPRING;      // set it to earth gravity, and
-  fTmp.e1 = 0;
-  fTmp.e2 = 1;
-  fTmp.K_spring = 3;
-  fTmp.K_springDamp = 0.1;
-  fTmp.K_restLength = 2;
+  fTmp.forceType = F_GRAV_E;      // set it to earth gravity, and
+  fTmp.targFirst = 1;             // set it to affect ALL particles:
+  fTmp.targCount = this.partCount-2;            // (negative value means ALL particles)
                                   // (and IGNORE all other Cforcer members...)
   this.forceList.push(fTmp);      // append this 'gravity' force object to 
-                                  // the forceList array of force-causing objects.
+                                  // the forceList array of force-causing objects.  
  
   // Report:
   console.log("PartSys.initSpringPair() created PartSys.forceList[] array of ");
@@ -685,30 +701,42 @@ PartSys.prototype.initSpringRope = function(count) {
   for(i=0; i<this.forceList.length; i++) {
     console.log("CForceList[",i,"]");
     this.forceList[i].printMe();
-    }                   
-    /*
+  }                   
+    
   // Create & init all constraint-causing objects-------------------------------
   var cTmp = new CLimit();      // creat constraint-causing object, and
   cTmp.hitType = HIT_BOUNCE_VEL;  // set how particles 'bounce' from its surface,
-  cTmp.limitType = LIM_VOL;       // confine particles inside axis-aligned 
+  cTmp.limitType = LIM_ANCHOR;       // anchor 1 particle 
                                   // rectangular volume that
-  cTmp.targFirst = 0;             // applies to ALL particles; starting at 0 
-  cTmp.partCount = -1;            // through all the rest of them.
-  cTmp.xMin = -1.0; cTmp.xMax = 1.0;  // box extent:  +/- 1.0 box at origin
-  cTmp.yMin = -1.0; cTmp.yMax = 1.0;
-  cTmp.zMin = -1.0; cTmp.zMax = 1.0;
-  cTmp.Kresti = 1.0;              // bouncyness: coeff. of restitution.
-                                  // (and IGNORE all other CLimit members...)
+  cTmp.e1 = 0;             // applies to ALL particles; starting at 0 !!!!ADJUST WHICH TO ANCHOR
+  cTmp.partCount = 1;            // through all the rest of them.
+  cTmp.xMin = this.init_pos[0][0];
+  cTmp.yMin = this.init_pos[0][1];
+  cTmp.zMin = this.init_pos[0][2];
+
+  this.limitList.push(cTmp);      // append this 'box' constraint object to the
+                                  // 'limitList' array of constraint-causing objects. 
+
+  var cTmp = new CLimit();      // creat constraint-causing object, and
+  cTmp.hitType = HIT_BOUNCE_VEL;  // set how particles 'bounce' from its surface,
+  cTmp.limitType = LIM_ANCHOR;       // anchor 1 particle 
+                                  // rectangular volume that
+  cTmp.e1 = this.partCount-1;             // anchor last particle
+  cTmp.partCount = 1;            // through all the rest of them.
+  cTmp.xMin = this.init_pos[this.partCount-1][0];
+  cTmp.yMin = this.init_pos[this.partCount-1][1];
+  cTmp.zMin = this.init_pos[this.partCount-1][2];
+
   this.limitList.push(cTmp);      // append this 'box' constraint object to the
                                   // 'limitList' array of constraint-causing objects.      
-                                  */                          
+                                                      
   // Report:
   console.log("PartSys.initBouncy2D() created PartSys.limitList[] array of ");
   console.log("\t\t", this.limitList.length, "CLimit objects.");
 
   this.INIT_VEL =  0.15 * 60.0;   // initial velocity in meters/sec.
   this.drag = 0.985;// units-free air-drag (scales velocity); adjust by d/D keys
-  this.grav = 0;// gravity's acceleration(meter/sec^2); adjust by g/G keys.
+  this.grav = 9.832;// gravity's acceleration(meter/sec^2); adjust by g/G keys.
   this.resti = 1.0; // units-free 'Coefficient of Restitution' for 
                     // inelastic collisions.  Sets the fraction of momentum 
                     // (0.0 <= resti < 1.0) that remains after a ball 
@@ -730,8 +758,8 @@ PartSys.prototype.initSpringRope = function(count) {
 // INITIALIZE s1, s2:
 //  NOTE: s1,s2 are a Float32Array objects, zero-filled by default.
 // That's OK for most particle parameters, but these need non-zero defaults:
-  var init_pos = [[2,0,0], [-2,0,0]];
-  var init_vel = [[0,0,0], [0,0,0]];
+  // initial position and velocity
+  
 
   var j = 0;  // i==particle number; j==array index for i-th particle
   for(var i = 0; i < this.partCount; i += 1, j+= PART_MAXVAR) {
@@ -739,15 +767,15 @@ PartSys.prototype.initSpringRope = function(count) {
                             // a 3D unit sphere centered at the origin.
     //all our bouncy-balls stay within a +/- 0.9 cube centered at origin; 
     // set random positions in a 0.1-radius ball centered at (-0.8,-0.8,-0.8)
-    this.s1[j + PART_XPOS] = init_pos[i][0]; 
-    this.s1[j + PART_YPOS] = init_pos[i][1];  
-    this.s1[j + PART_ZPOS] = init_pos[i][2];
+    this.s1[j + PART_XPOS] = this.init_pos[i][0]; 
+    this.s1[j + PART_YPOS] = this.init_pos[i][1];  
+    this.s1[j + PART_ZPOS] = this.init_pos[i][2];
     this.s1[j + PART_WPOS] =  1.0;      // position 'w' coordinate;
     this.roundRand(); // Now choose random initial velocities too:
-    this.s1[j + PART_XVEL] =  init_vel[i][0];
-    this.s1[j + PART_YVEL] =  init_vel[i][1];
-    this.s1[j + PART_ZVEL] =  init_vel[i][2];
-    this.s1[j + PART_MASS] =  1.0;      // mass, in kg.
+    this.s1[j + PART_XVEL] =  this.init_vel[i][0];
+    this.s1[j + PART_YVEL] =  this.init_vel[i][1];
+    this.s1[j + PART_ZVEL] =  this.init_vel[i][2];
+    this.s1[j + PART_MASS] =  0.05;      // mass, in kg.
     this.s1[j + PART_DIAM] =  2.0 + 10*Math.random(); // on-screen diameter, in pixels
     this.s1[j + PART_RENDMODE] = 0.0;
     this.s1[j + PART_AGE] = 30 + 100*Math.random();
@@ -1146,7 +1174,7 @@ PartSys.prototype.doConstraints = function(sNow, sNext, cList) {
 //
   if (this.refresh) {
     this.refresh = false;
-    if (this.partSysType == "SpringPair") {
+    if (this.partSysType == "SpringPair" || this.partSysType == "SpringRope") {
       var j = 0;  // i==particle number; j==array index for i-th particle
       for(var i = 0; i < this.partCount; i += 1, j+= PART_MAXVAR) {
         this.roundRand();       // set this.randX,randY,randZ to random location in 

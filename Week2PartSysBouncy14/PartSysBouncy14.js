@@ -231,7 +231,7 @@ function main() {
   g_partA.initBouncy2D(gl, 200);        // create a 2D bouncy-ball system where
                                     // 2 particles bounce within -0.9 <=x,y<0.9
                                     // and z=0.
-  g_partB.initSpringPair(gl);
+  g_partB.initSpringRope(gl, 10);
 
 
   worldBox.init(gl);    // VBO + shaders + uniforms + attribs for our 3D world,
