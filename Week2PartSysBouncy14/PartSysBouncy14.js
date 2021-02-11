@@ -664,8 +664,9 @@ function myKeyDown(kev) {
     case "KeyR":    // r/R for RESET: 
       if(kev.shiftKey==false) {   // 'r' key: SOFT reset; boost velocity only
   		  //---- refresh partsys A
+        g_partA.refresh = true;
         g_partA.runMode = 3;  // RUN!
-        var j=0; // array index for particle i
+        /*var j=0; // array index for particle i
         for(var i = 0; i < g_partA.partCount; i += 1, j+= PART_MAXVAR) {
           g_partA.roundRand();  // make a spherical random var.
     			if(  g_partA.s2[j + PART_XVEL] > 0.0) // ADD to positive velocity, and 
@@ -680,7 +681,7 @@ function myKeyDown(kev) {
     			if(  g_partA.s2[j + PART_ZVEL] > 0.0) 
     			     g_partA.s2[j + PART_ZVEL] += 1.7 + 0.4*g_partA.randZ*g_partA.INIT_VEL; 
     			else g_partA.s2[j + PART_ZVEL] -= 1.7 + 0.4*g_partA.randZ*g_partA.INIT_VEL;
-    		}
+    		}*/
         g_partB.refresh = true;
         /*
         //---- refresh partsys B spring pair
@@ -724,15 +725,20 @@ function myKeyDown(kev) {
 	  console.log("r/R: soft/hard Reset");      // print on console,
       break;
 		case "KeyV":
-      var solvTypes = [SOLV_EULER, SOLV_MIDPOINT];
+      var solvTypes = [SOLV_EULER, SOLV_MIDPOINT, SOLV_ADAMS_BASH, SOLV_BACK_EULER, SOLV_BACK_MIDPT];
       var solvIndex = solvTypes.indexOf(g_partB.solvType);
       solvIndex = (solvIndex + 1) % solvTypes.length;
-      //g_partA.solvType = solvTypes[solvIndex];
+      g_partA.solvType = solvTypes[solvIndex];
       g_partB.solvType = solvTypes[solvIndex];
 			document.getElementById('KeyDown').innerHTML =  
 			'myKeyDown() found v/V key. Switch solvers!';       // print on webpage.
 		  console.log("v/V: Change Solver:", g_partB.solvType); // print on console.
 			break;
+    case "KeyN":
+      g_partA.push = true;
+      g_partB.push = true;
+      console.log("keydown KeyN")
+      break;
 		case "Space":
       g_partA.runMode = 2;
 	  document.getElementById('KeyDown').innerHTML =  

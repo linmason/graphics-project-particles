@@ -156,6 +156,7 @@ function PartSys() {
   this.limitList = [];            // (empty) array to hold CLimit objects
                                   // for use by doContstraints()
   this.refresh = false; // resets if true, set by key controls
+  this.push = false;
 
   // Local version of model and MVP matrices
   this.MVPMatrix = new Matrix4();
@@ -231,23 +232,28 @@ PartSys.prototype.initBouncy2D = function(gl, count) {
   '}\n';
 
   // Create all state-variables-------------------------------------------------
+  this.partSysType = "Bouncy2D";
   this.partCount = count;
+  this.s0 =    new Float32Array(this.partCount * PART_MAXVAR);
   this.s1 =    new Float32Array(this.partCount * PART_MAXVAR);
   this.sM =    new Float32Array(this.partCount * PART_MAXVAR);
   this.s2 =    new Float32Array(this.partCount * PART_MAXVAR);
-  this.s1dot = new Float32Array(this.partCount * PART_MAXVAR);  
+  this.s3 =    new Float32Array(this.partCount * PART_MAXVAR);
+  this.s0dot = new Float32Array(this.partCount * PART_MAXVAR);
+  this.s1dot = new Float32Array(this.partCount * PART_MAXVAR);
   this.sMdot = new Float32Array(this.partCount * PART_MAXVAR);  
+  this.s2dot = new Float32Array(this.partCount * PART_MAXVAR);  
         // NOTE: Float32Array objects are zero-filled by default.
 
   // Create & init all force-causing objects------------------------------------
-  /*var fTmp = new CForcer();       // create a force-causing object, and
+  var fTmp = new CForcer();       // create a force-causing object, and
   // earth gravity for all particles:
   fTmp.forceType = F_GRAV_E;      // set it to earth gravity, and
   fTmp.targFirst = 0;             // set it to affect ALL particles:
   fTmp.partCount = -1;            // (negative value means ALL particles)
                                   // (and IGNORE all other Cforcer members...)
   this.forceList.push(fTmp);      // append this 'gravity' force object to 
-       */                           // the forceList array of force-causing objects.
+                                  // the forceList array of force-causing objects.
   // drag for all particles:
   fTmp = new CForcer();           // create a NEW CForcer object 
                                   // (WARNING! until we do this, fTmp refers to
@@ -466,11 +472,15 @@ PartSys.prototype.initSpringPair = function() {
   // Create all state-variables-------------------------------------------------
   this.partSysType = "SpringPair";
   this.partCount = 2;
+  this.s0 =    new Float32Array(this.partCount * PART_MAXVAR);
   this.s1 =    new Float32Array(this.partCount * PART_MAXVAR);
   this.sM =    new Float32Array(this.partCount * PART_MAXVAR);
   this.s2 =    new Float32Array(this.partCount * PART_MAXVAR);
+  this.s3 =    new Float32Array(this.partCount * PART_MAXVAR);
+  this.s0dot = new Float32Array(this.partCount * PART_MAXVAR);
   this.s1dot = new Float32Array(this.partCount * PART_MAXVAR);  
   this.sMdot = new Float32Array(this.partCount * PART_MAXVAR);  
+  this.s2dot = new Float32Array(this.partCount * PART_MAXVAR);  
         // NOTE: Float32Array objects are zero-filled by default.
 
   // Create & init all force-causing objects------------------------------------
@@ -495,6 +505,18 @@ PartSys.prototype.initSpringPair = function() {
                                   // (and IGNORE all other Cforcer members...)
   this.forceList.push(fTmp);      // append this 'gravity' force object to 
                                   // the forceList array of force-causing objects.  
+
+  // drag for all particles:
+  fTmp = new CForcer();           // create a NEW CForcer object 
+                                  // (WARNING! until we do this, fTmp refers to
+                                  // the same memory locations as forceList[0]!!!) 
+  fTmp.forceType = F_DRAG;        // Viscous Drag
+  fTmp.Kdrag = 0.15;              // in Euler solver, scales velocity by 0.85
+  fTmp.targFirst = 0;             // apply it to ALL particles:
+  fTmp.partCount = -1;            // (negative value means ALL particles)
+                                  // (and IGNORE all other Cforcer members...)
+  this.forceList.push(fTmp);      // append this 'gravity' force object to 
+                                  // the forceList array of force-causing objects.
  
   // Report:
   console.log("PartSys.initSpringPair() created PartSys.forceList[] array of ");
@@ -667,11 +689,15 @@ PartSys.prototype.initSpringRope = function(gl, count) {
   // Create all state-variables-------------------------------------------------
   this.partSysType = "SpringRope";
   this.partCount = count;
+  this.s0 =    new Float32Array(this.partCount * PART_MAXVAR);
   this.s1 =    new Float32Array(this.partCount * PART_MAXVAR);
   this.sM =    new Float32Array(this.partCount * PART_MAXVAR);
   this.s2 =    new Float32Array(this.partCount * PART_MAXVAR);
+  this.s3 =    new Float32Array(this.partCount * PART_MAXVAR);
+  this.s0dot = new Float32Array(this.partCount * PART_MAXVAR);
   this.s1dot = new Float32Array(this.partCount * PART_MAXVAR);  
   this.sMdot = new Float32Array(this.partCount * PART_MAXVAR);  
+  this.s2dot = new Float32Array(this.partCount * PART_MAXVAR);  
         // NOTE: Float32Array objects are zero-filled by default.
 
   this.init_pos = [[5,0,0], [4,0,0], [3,0,0], [2,0,0], [1,0,0], [0,0,0], [-1,0,0], [-2,0,0], [-3,0,0], [-4,0,0]];
@@ -687,7 +713,7 @@ PartSys.prototype.initSpringRope = function(gl, count) {
     fTmp.e2 = i+1;
     fTmp.K_spring = 20.0;
     fTmp.K_springDamp = 0.1;
-    fTmp.K_restLength = 0.8;
+    fTmp.K_restLength = 1.0;
                                     // (and IGNORE all other Cforcer members...)
     this.forceList.push(fTmp);      // append this 'gravity' force object to 
                                     // the forceList array of force-causing objects.
@@ -698,6 +724,18 @@ PartSys.prototype.initSpringRope = function(gl, count) {
   fTmp.forceType = F_GRAV_E;      // set it to earth gravity, and
   fTmp.targFirst = 1;             // set it to affect ALL particles:
   fTmp.targCount = this.partCount-2;            // (negative value means ALL particles)
+                                  // (and IGNORE all other Cforcer members...)
+  this.forceList.push(fTmp);      // append this 'gravity' force object to 
+                                  // the forceList array of force-causing objects.
+
+  // drag for all particles:
+  fTmp = new CForcer();           // create a NEW CForcer object 
+                                  // (WARNING! until we do this, fTmp refers to
+                                  // the same memory locations as forceList[0]!!!) 
+  fTmp.forceType = F_DRAG;        // Viscous Drag
+  fTmp.Kdrag = 0.15;              // in Euler solver, scales velocity by 0.85
+  fTmp.targFirst = 0;             // apply it to ALL particles:
+  fTmp.partCount = -1;            // (negative value means ALL particles)
                                   // (and IGNORE all other Cforcer members...)
   this.forceList.push(fTmp);      // append this 'gravity' force object to 
                                   // the forceList array of force-causing objects.  
@@ -870,6 +908,27 @@ PartSys.prototype.applyForces = function(s, fList) {
     s[j + PART_Y_FTOT] = 0.0;
     s[j + PART_Z_FTOT] = 0.0;
   }
+
+  if (this.push) {
+    this.push = false;
+    if (this.partSysType == "SpringRope") {
+      var wind_vec = [0,0,1];
+      var wind_magn = 10.0;
+
+      var wind_vec_magn = Math.sqrt(wind_vec[0] * wind_vec[0] + wind_vec[1] * wind_vec[1] + wind_vec[2] * wind_vec[2]);
+      for (var i = 0; i < 3; i++) {
+        wind_vec[i] /= wind_vec_magn;
+      }
+
+      var j = PART_MAXVAR;  // START on second end on second to last i==particle number; j==array index for i-th particle
+      for(var i = 1; i < this.partCount-1; i += 1, j+= PART_MAXVAR) {
+        s[j + PART_X_FTOT] += wind_vec[0] * wind_magn;
+        s[j + PART_Y_FTOT] += wind_vec[1] * wind_magn;
+        s[j + PART_Z_FTOT] += wind_vec[2] * wind_magn;
+      }
+    }
+  }
+
   // then find and accumulate all forces applied to particles in state s:
   for(var k = 0; k < fList.length; k++) {  // for every CForcer in fList array,
 //    console.log("fList[k].forceType:", fList[k].forceType);
@@ -1145,16 +1204,42 @@ PartSys.prototype.render = function(g_ModelMat) {
 
       break;
     case SOLV_ADAMS_BASH:       // Adams-Bashforth Explicit Integrator
-      console.log('NOT YET IMPLEMENTED: this.solvType==' + this.solvType);
+      this.dotFinder(this.s0dot, this.s0);
+      for (var n = 0; n < this.s1.length; n++) {
+        this.s2[n] = this.s1[n] + 3/2 * (g_timeStep * 0.001) * this.s1dot[n] - (g_timeStep * 0.001)/2 * this.s0dot[n];
+      }
       break;
     case SOLV_RUNGEKUTTA:       // Arbitrary degree, set by 'solvDegree'
       console.log('NOT YET IMPLEMENTED: this.solvType==' + this.solvType);
       break;
     case SOLV_BACK_EULER:       // 'Backwind' or Implicit Euler
-      console.log('NOT YET IMPLEMENTED: this.solvType==' + this.solvType);
+      for (var n = 0; n < this.s1.length; n++) { // for all elements in s1,s2,s1dot;
+        this.s2[n] = this.s1[n] + this.s1dot[n] * (g_timeStep * 0.001); 
+      }
+      this.dotFinder(this.s2dot, this.s2);
+      for (var n = 0; n < this.s1.length; n++) { // for all elements in s1,s2,s1dot;
+        this.s3[n] = this.s2[n] - this.s2dot[n] * (g_timeStep * 0.001); 
+        this.s2[n] -= 1/2 * (this.s1[n] - this.s3[n]);
+      }
       break;
     case  SOLV_BACK_MIDPT:      // 'Backwind' or Implicit Midpoint
-      console.log('NOT YET IMPLEMENTED: this.solvType==' + this.solvType);
+      for (var n = 0; n < this.s1.length; n++) {
+        this.sM[n] = this.s1[n] + (g_timeStep * 0.001)/2 * this.s1dot[n];
+      }
+      this.dotFinder(this.sMdot, this.sM);
+      for (var n = 0; n < this.s1.length; n++) { // for all elements in s1,s2,s1dot;
+        this.s2[n] = this.s1[n] + this.sMdot[n] * (g_timeStep * 0.001); 
+      }
+
+      this.dotFinder(this.s2dot, this.s2);
+      for (var n = 0; n < this.s1.length; n++) {
+        this.sM[n] = this.s2[n] - (g_timeStep * 0.001)/2 * this.s2dot[n];
+      }
+      this.dotFinder(this.sMdot, this.sM);
+      for (var n = 0; n < this.s1.length; n++) { // for all elements in s1,s2,s1dot;
+        this.s3[n] = this.s2[n] - this.sMdot[n] * (g_timeStep * 0.001); 
+        this.s2[n] -= 1/2 * (this.s1[n] - this.s3[n]);
+      }
       break;
     case SOLV_BACK_ADBASH:      // 'Backwind' or Implicit Adams-Bashforth
       console.log('NOT YET IMPLEMENTED: this.solvType==' + this.solvType);
@@ -1163,6 +1248,13 @@ PartSys.prototype.render = function(g_ModelMat) {
       console.log('NOT YET IMPLEMENTED: this.solvType==' + this.solvType);
       break;
     case SOLV_VEL_VERLET:      // 'Velocity-Verlet'semi-implicit integrator
+      var j = 0;  // i==particle number; j==array index for i-th particle
+      for(var i = 0; i < this.partCount; i += 1, j+= PART_MAXVAR) {
+        // CAREFUL! must convert g_timeStep from milliseconds to seconds!
+        this.s2[j + PART_XPOS] = this.s1[j + PART_XPOS] + this.s1[j + PART_XVEL] * (g_timeStep * 0.001) + this.s1[j + PART_XACC];
+        this.s2[j + PART_YPOS] = this.s2[j + PART_YVEL] * (g_timeStep * 0.001); 
+        this.s2[j + PART_ZPOS] = this.s2[j + PART_ZVEL] * (g_timeStep * 0.001); 
+      }
       console.log('NOT YET IMPLEMENTED: this.solvType==' + this.solvType);
       break;
     case SOLV_LEAPFROG:        // 'Leapfrog' integrator
@@ -1210,6 +1302,24 @@ PartSys.prototype.doConstraints = function(sNow, sNext, cList) {
         //----------------------------
         this.s2.set(this.s1);   // COPY contents of state-vector s1 to s2.
       }
+    }
+    if (this.partSysType == "Bouncy2D") {
+      var j=0; // array index for particle i
+        for(var i = 0; i < g_partA.partCount; i += 1, j+= PART_MAXVAR) {
+          g_partA.roundRand();  // make a spherical random var.
+          if(  g_partA.s2[j + PART_XVEL] > 0.0) // ADD to positive velocity, and 
+               g_partA.s2[j + PART_XVEL] += 1.7 + 0.4*g_partA.randX*g_partA.INIT_VEL;
+                                                // SUBTRACT from negative velocity: 
+          else g_partA.s2[j + PART_XVEL] -= 1.7 + 0.4*g_partA.randX*g_partA.INIT_VEL; 
+
+          if(  g_partA.s2[j + PART_YVEL] > 0.0) 
+               g_partA.s2[j + PART_YVEL] += 1.7 + 0.4*g_partA.randY*g_partA.INIT_VEL; 
+          else g_partA.s2[j + PART_YVEL] -= 1.7 + 0.4*g_partA.randY*g_partA.INIT_VEL;
+
+          if(  g_partA.s2[j + PART_ZVEL] > 0.0) 
+               g_partA.s2[j + PART_ZVEL] += 1.7 + 0.4*g_partA.randZ*g_partA.INIT_VEL; 
+          else g_partA.s2[j + PART_ZVEL] -= 1.7 + 0.4*g_partA.randZ*g_partA.INIT_VEL;
+        }
     }
   }
 
@@ -1488,7 +1598,7 @@ PartSys.prototype.swap = function() {
 
 // Or we can REPLACE s1 contents with s2 contents, like this:
 // NOTE: if we try:  this.s1 = this.s2; we DISCARD s1's memory!!
-
+  this.s0.set(this.s1)
   this.s1.set(this.s2);     // set values of s1 array to match s2 array.
 // (WHY? so that your solver can make intermittent changes to particle
 // values without any unwanted 'old' values re-appearing. For example,
