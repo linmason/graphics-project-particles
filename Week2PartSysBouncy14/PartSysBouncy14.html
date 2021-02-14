@@ -11,38 +11,43 @@
     	Please use a browser that supports "canvas"
     </canvas> 
 	<br> 
-	<b>Particle System Controls:</b> 
-  <br>
-  <b>r/R key:</b> refresh/Reset. 
-  <b>Space-bar:</b> single-step.    
-  <b>p or P key:</b> pause/resume.	
-	<br>
-  <b>c or C key:</b> toggle clear-screen.  
-	<b>f or F:</b> toggle 'fountain' (age constraint)
-	<br>
-	<b>k/K key:</b> less/more drag.  
-  <b>g/G key:</b> less/more gravity <br>
-  <b>v or V: switch solvers</b> (implicit vs. explicit) 
-  <br>
-  <b>b or B:</b> floor-bounce method
-	
+  <div id="controls" style="height: 29vh; display: flex; flex-direction: column; overflow: scroll;">
+  <div id="directions">
+  	<b>Particle System Controls:</b> 
+	  <br>
+	  <b>WASD key:</b> Movement.
+	  <b>Arrow keys:</b> camera direction.
+	  <br>
+	  <b>r/R key:</b> refresh/Reset. 
+	  <b>Space-bar:</b> single-step.    
+	  <b>p or P key:</b> pause/resume.	
+	  <b>c or C key:</b> toggle clear-screen. 
+	  <br> 
+		<b>f or F:</b> toggle 'fire' (age constraint)
+	  <b>v or V: switch solvers</b> (implicit vs. explicit) 
+	  <br>
+	  <b>n:</b> nudge the spring rope
+	</div>
 	<!-- Make 'div' elements to hold changeable HTML made in our JavaScript file;
 		 (where? look at the end of 'BouncyBall03.js' at 
 			myKeyPress(), myKeyDown() and myKeyUp() fcns)
 	-->
-	<p>
-		<div id='KeyControls'> KeyControls... </div>
-		<div id='KeyDown'> KeyDown...</div>
-		<div id='KeyMod'> KeyMod...  </div>
-		<div id='MouseResult0'> MouseResult0... </div> 
-		<div id='MouseResult1'> MouseResult1... </div>
-  </p>
-	<p>
-      <button type="button" onclick="onPlusButton()" >++More</button>
-      <button type="button" onclick="onMinusButton()">--Less</button>
-		Buttons adjust 'r' or 'R' key strength <br>
-		Open Console, please (right-click-->'Inspect Element'-->'Console' tab) 		
-	</p>
+	<div>
+		<p>
+			<div id='KeyControls'> KeyControls... </div>
+			<div id='KeyDown'> KeyDown...</div>
+			<div id='KeyMod'> KeyMod...  </div>
+			<div id='MouseResult0'> MouseResult0... </div> 
+			<div id='MouseResult1'> MouseResult1... </div>
+	  	</p>
+		<p>
+	      <button type="button" onclick="onPlusButton()" >++More</button>
+	      <button type="button" onclick="onMinusButton()">--Less</button>
+			Buttons adjust 'r' or 'R' key strength <br>
+			Open Console, please (right-click-->'Inspect Element'-->'Console' tab) 		
+		</p>
+	</div>
+  </div>
 	<!--	Load in the JavaScript libraries supplied by our textbook 
 			(Matsuda et al., 2013 WebGL Programming Guide) that help us
 			with WebGL programming:

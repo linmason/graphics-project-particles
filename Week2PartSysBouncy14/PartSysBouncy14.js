@@ -173,7 +173,8 @@ function main() {
   //}
 
   // Initialize Particle systems:
-  g_partA.initBouncy2D(gl, 200);        // create a 2D bouncy-ball system where
+  g_partA.initFireReeves(gl, 200);
+  //g_partA.initBouncy2D(gl, 200);        // create a 2D bouncy-ball system where
                                     // 2 particles bounce within -0.9 <=x,y<0.9
                                     // and z=0.
   g_partB.initSpringRope(gl, 10);
@@ -599,14 +600,6 @@ function myKeyDown(kev) {
       g_lookatTranslate = 1;
       console.log(g_lookatTranslate);
       break;
-
-    case "KeyB":                // Toggle floor-bounce constraint type
-			if(g_partA.bounceType==0) g_partA.bounceType = 1;   // impulsive vs simple
-			else g_partA.bounceType = 0;
-			document.getElementById('KeyDown').innerHTML =  
-			'myKeyDown() b/B key: toggle bounce mode.';	      // print on webpage,
-			console.log("b/B key: toggle bounce mode.");      // print on console. 
-      break;
     case "KeyC":                // Toggle screen-clearing to show 'trails'
 			g_isClear += 1;
 			if(g_isClear > 1) g_isClear = 0;
@@ -621,29 +614,12 @@ function myKeyDown(kev) {
       console.log(g_partB.s2[0 + PART_X_FTOT])
       g_partB.s2[PART_MAXVAR + PART_X_FTOT] -= 5.0;
       break;
-    case "KeyK":      // 'k'  INCREASE drag loss; 'K' to DECREASE drag loss
-      if(kev.shiftKey==false) g_partA.drag *= 0.995; // permit less movement.
-      else {
-        g_partA.drag *= 1.0 / 0.995;
-        if(g_partA.drag > 1.0) g_partA.drag = 1.0;  // don't let drag ADD energy!
-        }
-		document.getElementById('KeyDown').innerHTML =  
-		'myKeyDown() k/K key: grow/shrink drag.';	 // print on webpage,
-	  console.log("k/K: grow/shrink drag:", g_partA.drag); // print on console,
-      break;
     case "KeyF":    // 'f' or 'F' to toggle particle fountain on/off
       g_partA.isFountain += 1;
       if(g_partA.isFountain > 1) g_partA.isFountain = 0;
 	  document.getElementById('KeyDown').innerHTML =  
 	  "myKeyDown() f/F key: toggle age constraint (fountain).";	// print on webpage,
 			console.log("F: toggle age constraint (fountain)."); // print on console,
-      break;
-    case "KeyG":    // 'g' to REDUCE gravity; 'G' to increase.
-      if(kev.shiftKey==false) 		g_partA.grav *= 0.99;		// shrink 1%
-      else                        g_partA.grav *= 1.0/0.98; // grow 2%
-	  document.getElementById('KeyDown').innerHTML =  
-	  'myKeyDown() g/G key: shrink/grow gravity.';	 			// print on webpage,
-	  console.log("g/G: shrink/grow gravity:", g_partA.grav); 	// print on console,
       break;
     case "KeyM":    // 'm' to REDUCE mass; 'M' to increase.
       if(kev.shiftKey==false)     g_partA.mass *= 0.98;   // shrink 2%
@@ -816,6 +792,10 @@ function myKeyUp(kev) {
     case "ArrowDown":
       g_zOffsetRate = 0;
       break;  
+    case "KeyN":
+      g_partA.push = false;
+      g_partB.push = false;
+      break;
     default:
       break;
   }
@@ -866,9 +846,6 @@ function printControls() {
       solvTypeTxt = 'Max<br>';
       break;
   }
-	var bounceTypeTxt;											// convert bounce number to text
-	if(g_partA.bounceType==0) bounceTypeTxt = 'Velocity Reverse(no rest)<br>';
-	                     else bounceTypeTxt = 'Impulsive (will rest)<br>';
 	var fountainText;
 	if(g_partA.isFountain==0) fountainText = 'OFF: ageless particles.<br>';
 	else                      fountainText = 'ON: re-cycle old particles.<br>';
@@ -879,11 +856,8 @@ function printControls() {
 	
 	document.getElementById('KeyControls').innerHTML = 
    			'<b>Solver = </b>' + solvTypeTxt + 
-   			'<b>Bounce = </b>' + bounceTypeTxt +
-   			'<b>Fountain =</b>' + fountainText +
-   			'<b>drag = </b>' + g_partA.drag.toFixed(5) + 
-   			', <b>grav = </b>' + g_partA.grav.toFixed(5) +
-   			' m/s^2; <b>yVel = +/-</b> ' + yvLimit.toFixed(5) + 
+   			'<b>Fire =</b>' + fountainText +
+   			'<b>yVel = +/-</b> ' + yvLimit.toFixed(5) + 
    			' m/s; <b>xVel = +/-</b> ' + xvLimit.toFixed(5) + 
    			' m/s;<br><b>timeStep = </b> 1/' + recipTime.toFixed(3) + ' sec' +
    			                ' <b>min:</b> 1/' + recipMin.toFixed(3)  + ' sec' + 
