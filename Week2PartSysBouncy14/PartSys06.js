@@ -499,7 +499,22 @@ PartSys.prototype.initFireReeves = function(gl, count) {
   cTmp.Kresti = 1.0;              // bouncyness: coeff. of restitution.
                                   // (and IGNORE all other CLimit members...)
   this.limitList.push(cTmp);      // append this 'box' constraint object to the
-                                  // 'limitList' array of constraint-causing objects.                                
+                                  // 'limitList' array of constraint-causing objects.
+/*
+  var cTmp = new CLimit();      // creat constraint-causing object, and
+  cTmp.hitType = HIT_BOUNCE_VEL;  // set how particles 'bounce' from its surface,
+  cTmp.limitType = LIM_VOL;       // confine particles inside axis-aligned 
+                                  // rectangular volume that
+  cTmp.targFirst = 0;             // applies to ALL particles; starting at 0 
+  cTmp.partCount = -1;            // through all the rest of them.
+  cTmp.xMin = 0.5; cTmp.xMax = -0.5;  // box extent:  +/- 1.0 box at origin
+  cTmp.yMin = 0.5; cTmp.yMax = -0.5;
+  cTmp.zMin = 0.5; cTmp.zMax = -0.5;
+  cTmp.Kresti = 1.0;              // bouncyness: coeff. of restitution.
+                                  // (and IGNORE all other CLimit members...)
+  this.limitList.push(cTmp);      // append this 'box' constraint object to the
+                                  // 'limitList' array of constraint-causing objects.
+*/
   // Report:
   console.log("PartSys.initFireReeves() created PartSys.limitList[] array of ");
   console.log("\t\t", this.limitList.length, "CLimit objects.");
@@ -1524,100 +1539,219 @@ PartSys.prototype.doConstraints = function(sNow, sNext, cList) {
                         // cList[k].xMin,xMax,yMin,yMax,zMin,zMax keeps
                         // particles INSIDE if xMin<xMax, yMin<yMax, zMin<zMax
                         //      and OUTSIDE if xMin>xMax, yMin>yMax, zMin>xMax.
-        var j = m*PART_MAXVAR;  // state var array index for particle # m
-        for(var i = 0; i < mmax; i += 1, j+= PART_MAXVAR) {
-          //--------  left (-X) wall  ----------
-          if( this.s2[j + PART_XPOS] < (cList[k].xMin + 0.1)) {// && this.s2[j + PART_XVEL] < 0.0 ) {
-          // collision!
-            this.s2[j + PART_XPOS] = (cList[k].xMin + 0.1);// 1) resolve contact: put particle at wall.
-            this.s2[j + PART_XVEL] = this.s1[j + PART_XVEL];  // 2a) undo velocity change:
-            //this.s2[j + PART_XVEL] *= this.drag;              // 2b) apply drag:
-            // 3) BOUNCE:  reversed velocity*coeff-of-restitution.
-            // ATTENTION! VERY SUBTLE PROBLEM HERE!
-            // need a velocity-sign test here that ensures the 'bounce' step will 
-            // always send the ball outwards, away from its wall or floor collision. 
-            if( this.s2[j + PART_XVEL] < 0.0) 
+        // if min and max switched restrict particles outside
+        if (cList[k].xMin > cList[k].xMax && cList[k].yMin > cList[k].yMax && cList[k].zMin > cList[k].zMax) {
+          var j = m*PART_MAXVAR;  // state var array index for particle # m
+          for(var i = 0; i < mmax; i += 1, j+= PART_MAXVAR) {
+            //--------  between (X) walls  ----------
+            if( this.s2[j + PART_XPOS] < (cList[k].xMin + 0.1) && this.s2[j + PART_XPOS] > (cList[k].xMax - 0.1)) {
+            // collision!
+              //this.s2[j + PART_XPOS] = (cList[k].xMin + 0.1);// 1) resolve contact: put particle at wall.
+              this.s2[j + PART_XVEL] = this.s1[j + PART_XVEL];  // 2a) undo velocity change:
+              //this.s2[j + PART_XVEL] *= this.drag;              // 2b) apply drag:
+              // 3) BOUNCE:  reversed velocity*coeff-of-restitution.
+              // ATTENTION! VERY SUBTLE PROBLEM HERE!
+              // need a velocity-sign test here that ensures the 'bounce' step will 
+              // always send the ball outwards, away from its wall or floor collision. 
+              // if going 
+              var isNearxMin = (cList[k].xMin - this.s2[j + PART_XPOS]) < (this.s2[j + PART_XPOS] - cList[k].xMax);
+              var isNearxMax = (cList[k].xMin - this.s2[j + PART_XPOS]) > (this.s2[j + PART_XPOS] - cList[k].xMax);
+              var isEnterFromxMin = this.s2[j + PART_XVEL] < 0.0 && isNearxMin;
+              var isEnterFromxMax = this.s2[j + PART_XVEL] > 0.0 && isNearxMax;
+              if (isNearxMin) {
+                this.s2[j + PART_XPOS] = (cList[k].xMin + 0.1);
+              }
+              else if (isNearxMax) {
+                this.s2[j + PART_XPOS] = (cList[k].xMax - 0.1);
+              }
+              if(isEnterFromxMin) {
                 this.s2[j + PART_XVEL] = -cList[k].Kresti * this.s2[j + PART_XVEL]; // need sign change--bounce!
-            else 
+                console.log("x reverse")
+              }
+              else if(isEnterFromxMax) {
+                this.s2[j + PART_XVEL] = -cList[k].Kresti * this.s2[j + PART_XVEL]; // need sign change--bounce!
+                console.log("x reverse")
+              }
+              else {
+                console.log("x continue")
                 this.s2[j + PART_XVEL] =  cList[k].Kresti * this.s2[j + PART_XVEL]; // sign changed-- don't need another.
-          }
-          //--------  right (+X) wall  --------------------------------------------
-          else if( this.s2[j + PART_XPOS] >  (cList[k].xMax - 0.1)) { // && this.s2[j + PART_XVEL] > 0.0) { 
-          // collision!
-            this.s2[j + PART_XPOS] = (cList[k].xMax - 0.1); // 1) resolve contact: put particle at wall.
-            this.s2[j + PART_XVEL] = this.s1[j + PART_XVEL];  // 2a) undo velocity change:
-            //this.s2[j + PART_XVEL] *= this.drag;              // 2b) apply drag:
-            // 3) BOUNCE:  reversed velocity*coeff-of-restitution.
-            // ATTENTION! VERY SUBTLE PROBLEM HERE! 
-            // need a velocity-sign test here that ensures the 'bounce' step will 
-            // always send the ball outwards, away from its wall or floor collision. 
-            if(this.s2[j + PART_XVEL] > 0.0) 
-                this.s2[j + PART_XVEL] = -cList[k].Kresti * this.s2[j + PART_XVEL]; // need sign change--bounce!
-            else 
-                this.s2[j + PART_XVEL] =  cList[k].Kresti * this.s2[j + PART_XVEL];  // sign changed-- don't need another.
-          }
-          //--------  floor (-Y) wall  --------------------------------------------     
-          if( this.s2[j + PART_YPOS] < (cList[k].yMin + 0.1)) { // && this.s2[j + PART_YVEL] < 0.0) {    
-          // collision! floor...  
-            this.s2[j + PART_YPOS] = (cList[k].yMin + 0.1);// 1) resolve contact: put particle at wall.
-            this.s2[j + PART_YVEL] = this.s1[j + PART_YVEL];  // 2a) undo velocity change:
-            //this.s2[j + PART_YVEL] *= this.drag;              // 2b) apply drag:  
-            // 3) BOUNCE:  reversed velocity*coeff-of-restitution.
-            // ATTENTION! VERY SUBTLE PROBLEM HERE!
-            // need a velocity-sign test here that ensures the 'bounce' step will 
-            // always send the ball outwards, away from its wall or floor collision.
-            if(this.s2[j + PART_YVEL] < 0.0) 
+              }
+            }
+            //--------  between (Y) walls  ----------
+            if( this.s2[j + PART_YPOS] < (cList[k].yMin + 0.1) && this.s2[j + PART_YPOS] > (cList[k].yMax - 0.1)) {
+            // collision!
+              //this.s2[j + PART_YPOS] = (cList[k].yMin + 0.1);// 1) resolve contact: put particle at wall.
+              this.s2[j + PART_YVEL] = this.s1[j + PART_YVEL];  // 2a) undo velocity change:
+              //this.s2[j + PART_YVEL] *= this.drag;              // 2b) apply drag:
+              // 3) BOUNCE:  reversed velocity*coeff-of-restitution.
+              // ATTENTION! VERY SUBTLE PROBLEM HERE!
+              // need a velocity-sign test here that ensures the 'bounce' step will 
+              // always send the ball outwards, away from its wall or floor collision. 
+              // if going 
+              var isNearyMin = (cList[k].yMin - this.s2[j + PART_YPOS]) < (this.s2[j + PART_YPOS] - cList[k].yMax);
+              var isNearyMax = (cList[k].yMin - this.s2[j + PART_XPOS]) > (this.s2[j + PART_YPOS] - cList[k].yMax);
+              var isEnterFromyMin = this.s2[j + PART_YVEL] < 0.0 && isNearyMin;
+              var isEnterFromyMax = this.s2[j + PART_YVEL] > 0.0 && isNearyMax;
+              if (isNearyMin) {
+                this.s2[j + PART_YPOS] = (cList[k].yMin + 0.1);
+              }
+              else if (isNearyMax) {
+                this.s2[j + PART_YPOS] = (cList[k].yMax - 0.1);
+              }
+              if(isEnterFromyMin) {
                 this.s2[j + PART_YVEL] = -cList[k].Kresti * this.s2[j + PART_YVEL]; // need sign change--bounce!
-            else 
-                this.s2[j + PART_YVEL] =  cList[k].Kresti * this.s2[j + PART_YVEL];  // sign changed-- don't need another.
-          }
-          //--------  ceiling (+Y) wall  ------------------------------------------
-          else if( this.s2[j + PART_YPOS] > (cList[k].yMax - 0.1) ) { // && this.s2[j + PART_YVEL] > 0.0) {
-              // collision! ceiling...
-            this.s2[j + PART_YPOS] = (cList[k].yMax - 0.1);// 1) resolve contact: put particle at wall.
-            this.s2[j + PART_YVEL] = this.s1[j + PART_YVEL];  // 2a) undo velocity change:
-            //this.s2[j + PART_YVEL] *= this.drag;              // 2b) apply drag:
-            // 3) BOUNCE:  reversed velocity*coeff-of-restitution.
-            // ATTENTION! VERY SUBTLE PROBLEM HERE!
-            // need a velocity-sign test here that ensures the 'bounce' step will 
-            // always send the ball outwards, away from its wall or floor collision.
-            if(this.s2[j + PART_YVEL] > 0.0) 
+                console.log("y reverse")
+              }
+              else if(isEnterFromyMax) {
                 this.s2[j + PART_YVEL] = -cList[k].Kresti * this.s2[j + PART_YVEL]; // need sign change--bounce!
-            else 
-                this.s2[j + PART_YVEL] =  cList[k].Kresti * this.s2[j + PART_YVEL];  // sign changed-- don't need another.
-          }
-          //--------  near (-Z) wall  --------------------------------------------- 
-          if( this.s2[j + PART_ZPOS] < (cList[k].zMin + 0.1) ) { // && this.s2[j + PART_ZVEL] < 0.0 ) {
-          // collision! 
-            this.s2[j + PART_ZPOS] = (cList[k].zMin + 0.1);// 1) resolve contact: put particle at wall.
-            this.s2[j + PART_ZVEL] = this.s1[j + PART_ZVEL];  // 2a) undo velocity change:
-            //this.s2[j + PART_ZVEL] *= this.drag;              // 2b) apply drag:
-            // 3) BOUNCE:  reversed velocity*coeff-of-restitution.
-            // ATTENTION! VERY SUBTLE PROBLEM HERE! ------------------------------
-            // need a velocity-sign test here that ensures the 'bounce' step will 
-            // always send the ball outwards, away from its wall or floor collision. 
-            if( this.s2[j + PART_ZVEL] < 0.0) 
+                console.log("y reverse")
+              }
+              else {
+                console.log("y continue")
+                this.s2[j + PART_YVEL] =  cList[k].Kresti * this.s2[j + PART_YVEL]; // sign changed-- don't need another.
+              }
+            }
+            //--------  between (Z) walls  ----------
+            if( this.s2[j + PART_ZPOS] < (cList[k].zMin + 0.1) && this.s2[j + PART_ZPOS] > (cList[k].zMax - 0.1)) {
+            // collision!
+              //this.s2[j + PART_ZPOS] = (cList[k].zMin + 0.1);// 1) resolve contact: put particle at wall.
+              this.s2[j + PART_ZVEL] = this.s1[j + PART_ZVEL];  // 2a) undo velocity change:
+              //this.s2[j + PART_ZVEL] *= this.drag;              // 2b) apply drag:
+              // 3) BOUNCE:  reversed velocity*coeff-of-restitution.
+              // ATTENTION! VERY SUBTLE PROBLEM HERE!
+              // need a velocity-sign test here that ensures the 'bounce' step will 
+              // always send the ball outwards, away from its wall or floor collision. 
+              // if going 
+              var isNearzMin = (cList[k].zMin - this.s2[j + PART_ZPOS]) < (this.s2[j + PART_ZPOS] - cList[k].zMax);
+              var isNearzMax = (cList[k].zMin - this.s2[j + PART_ZPOS]) > (this.s2[j + PART_ZPOS] - cList[k].zMax);
+              var isEnterFromzMin = this.s2[j + PART_ZVEL] < 0.0 && isNearzMin;
+              var isEnterFromzMax = this.s2[j + PART_ZVEL] > 0.0 && isNearzMax;
+              if (isNearzMin) {
+                this.s2[j + PART_ZPOS] = (cList[k].zMin + 0.1);
+              }
+              else if (isNearzMax) {
+                this.s2[j + PART_ZPOS] = (cList[k].zMax - 0.1);
+              }
+              if(isEnterFromzMin) {
                 this.s2[j + PART_ZVEL] = -cList[k].Kresti * this.s2[j + PART_ZVEL]; // need sign change--bounce!
-            else 
-                this.s2[j + PART_ZVEL] =  cList[k].Kresti * this.s2[j + PART_ZVEL];  // sign changed-- don't need another.
-          }
-          //--------  far (+Z) wall  ---------------------------------------------- 
-          else if( this.s2[j + PART_ZPOS] >  (cList[k].zMax - 0.1)) { // && this.s2[j + PART_ZVEL] > 0.0) { 
-          // collision! 
-            this.s2[j + PART_ZPOS] = (cList[k].zMax - 0.1); // 1) resolve contact: put particle at wall.
-            this.s2[j + PART_ZVEL] = this.s1[j + PART_ZVEL];  // 2a) undo velocity change:
-            //this.s2[j + PART_ZVEL] *= this.drag;              // 2b) apply drag:
-            // 3) BOUNCE:  reversed velocity*coeff-of-restitution.
-            // ATTENTION! VERY SUBTLE PROBLEM HERE! ------------------------------
-            // need a velocity-sign test here that ensures the 'bounce' step will 
-            // always send the ball outwards, away from its wall or floor collision.        
-            if(this.s2[j + PART_ZVEL] > 0.0) 
+                console.log("z reverse")
+              }
+              else if(isEnterFromzMax) {
                 this.s2[j + PART_ZVEL] = -cList[k].Kresti * this.s2[j + PART_ZVEL]; // need sign change--bounce!
-            else 
-                this.s2[j + PART_ZVEL] =  cList[k].Kresti * this.s2[j + PART_ZVEL];  // sign changed-- don't need another.
-          } // end of (+Z) wall constraint
-        } // end of for-loop for all particles
-
+                console.log("z reverse")
+              }
+              else {
+                console.log("z continue")
+                this.s2[j + PART_ZVEL] =  cList[k].Kresti * this.s2[j + PART_ZVEL]; // sign changed-- don't need another.
+              }
+            }
+          }
+        }
+        // bounding box to keep particles in
+        else {
+          console.log(k);
+          var j = m*PART_MAXVAR;  // state var array index for particle # m
+          for(var i = 0; i < mmax; i += 1, j+= PART_MAXVAR) {
+            //--------  left (-X) wall  ----------
+            if( this.s2[j + PART_XPOS] < (cList[k].xMin + 0.1)) {// && this.s2[j + PART_XVEL] < 0.0 ) {
+            // collision!
+              this.s2[j + PART_XPOS] = (cList[k].xMin + 0.1);// 1) resolve contact: put particle at wall.
+              this.s2[j + PART_XVEL] = this.s1[j + PART_XVEL];  // 2a) undo velocity change:
+              //this.s2[j + PART_XVEL] *= this.drag;              // 2b) apply drag:
+              // 3) BOUNCE:  reversed velocity*coeff-of-restitution.
+              // ATTENTION! VERY SUBTLE PROBLEM HERE!
+              // need a velocity-sign test here that ensures the 'bounce' step will 
+              // always send the ball outwards, away from its wall or floor collision. 
+              if( this.s2[j + PART_XVEL] < 0.0) {
+                  this.s2[j + PART_XVEL] = -cList[k].Kresti * this.s2[j + PART_XVEL]; // need sign change--bounce!
+                  console.log("-x reverse")
+              }
+              else {
+                  console.log("-x continue")
+                  this.s2[j + PART_XVEL] =  cList[k].Kresti * this.s2[j + PART_XVEL]; // sign changed-- don't need another.
+              }
+            }
+            //--------  right (+X) wall  --------------------------------------------
+            else if( this.s2[j + PART_XPOS] >  (cList[k].xMax - 0.1)) { // && this.s2[j + PART_XVEL] > 0.0) { 
+            // collision!
+              this.s2[j + PART_XPOS] = (cList[k].xMax - 0.1); // 1) resolve contact: put particle at wall.
+              this.s2[j + PART_XVEL] = this.s1[j + PART_XVEL];  // 2a) undo velocity change:
+              //this.s2[j + PART_XVEL] *= this.drag;              // 2b) apply drag:
+              // 3) BOUNCE:  reversed velocity*coeff-of-restitution.
+              // ATTENTION! VERY SUBTLE PROBLEM HERE! 
+              // need a velocity-sign test here that ensures the 'bounce' step will 
+              // always send the ball outwards, away from its wall or floor collision. 
+              if(this.s2[j + PART_XVEL] > 0.0) {
+                  this.s2[j + PART_XVEL] = -cList[k].Kresti * this.s2[j + PART_XVEL]; // need sign change--bounce!
+                  console.log("+x reverse");
+              }
+              else {
+                  console.log("+x continue")
+                  this.s2[j + PART_XVEL] =  cList[k].Kresti * this.s2[j + PART_XVEL];  // sign changed-- don't need another.
+              }
+            }
+            //--------  floor (-Y) wall  --------------------------------------------     
+            if( this.s2[j + PART_YPOS] < (cList[k].yMin + 0.1)) { // && this.s2[j + PART_YVEL] < 0.0) {    
+            // collision! floor...  
+              this.s2[j + PART_YPOS] = (cList[k].yMin + 0.1);// 1) resolve contact: put particle at wall.
+              this.s2[j + PART_YVEL] = this.s1[j + PART_YVEL];  // 2a) undo velocity change:
+              //this.s2[j + PART_YVEL] *= this.drag;              // 2b) apply drag:  
+              // 3) BOUNCE:  reversed velocity*coeff-of-restitution.
+              // ATTENTION! VERY SUBTLE PROBLEM HERE!
+              // need a velocity-sign test here that ensures the 'bounce' step will 
+              // always send the ball outwards, away from its wall or floor collision.
+              if(this.s2[j + PART_YVEL] < 0.0) 
+                  this.s2[j + PART_YVEL] = -cList[k].Kresti * this.s2[j + PART_YVEL]; // need sign change--bounce!
+              else 
+                  this.s2[j + PART_YVEL] =  cList[k].Kresti * this.s2[j + PART_YVEL];  // sign changed-- don't need another.
+            }
+            //--------  ceiling (+Y) wall  ------------------------------------------
+            else if( this.s2[j + PART_YPOS] > (cList[k].yMax - 0.1) ) { // && this.s2[j + PART_YVEL] > 0.0) {
+                // collision! ceiling...
+              this.s2[j + PART_YPOS] = (cList[k].yMax - 0.1);// 1) resolve contact: put particle at wall.
+              this.s2[j + PART_YVEL] = this.s1[j + PART_YVEL];  // 2a) undo velocity change:
+              //this.s2[j + PART_YVEL] *= this.drag;              // 2b) apply drag:
+              // 3) BOUNCE:  reversed velocity*coeff-of-restitution.
+              // ATTENTION! VERY SUBTLE PROBLEM HERE!
+              // need a velocity-sign test here that ensures the 'bounce' step will 
+              // always send the ball outwards, away from its wall or floor collision.
+              if(this.s2[j + PART_YVEL] > 0.0) 
+                  this.s2[j + PART_YVEL] = -cList[k].Kresti * this.s2[j + PART_YVEL]; // need sign change--bounce!
+              else 
+                  this.s2[j + PART_YVEL] =  cList[k].Kresti * this.s2[j + PART_YVEL];  // sign changed-- don't need another.
+            }
+            //--------  near (-Z) wall  --------------------------------------------- 
+            if( this.s2[j + PART_ZPOS] < (cList[k].zMin + 0.1) ) { // && this.s2[j + PART_ZVEL] < 0.0 ) {
+            // collision! 
+              this.s2[j + PART_ZPOS] = (cList[k].zMin + 0.1);// 1) resolve contact: put particle at wall.
+              this.s2[j + PART_ZVEL] = this.s1[j + PART_ZVEL];  // 2a) undo velocity change:
+              //this.s2[j + PART_ZVEL] *= this.drag;              // 2b) apply drag:
+              // 3) BOUNCE:  reversed velocity*coeff-of-restitution.
+              // ATTENTION! VERY SUBTLE PROBLEM HERE! ------------------------------
+              // need a velocity-sign test here that ensures the 'bounce' step will 
+              // always send the ball outwards, away from its wall or floor collision. 
+              if( this.s2[j + PART_ZVEL] < 0.0) 
+                  this.s2[j + PART_ZVEL] = -cList[k].Kresti * this.s2[j + PART_ZVEL]; // need sign change--bounce!
+              else 
+                  this.s2[j + PART_ZVEL] =  cList[k].Kresti * this.s2[j + PART_ZVEL];  // sign changed-- don't need another.
+            }
+            //--------  far (+Z) wall  ---------------------------------------------- 
+            else if( this.s2[j + PART_ZPOS] >  (cList[k].zMax - 0.1)) { // && this.s2[j + PART_ZVEL] > 0.0) { 
+            // collision! 
+              this.s2[j + PART_ZPOS] = (cList[k].zMax - 0.1); // 1) resolve contact: put particle at wall.
+              this.s2[j + PART_ZVEL] = this.s1[j + PART_ZVEL];  // 2a) undo velocity change:
+              //this.s2[j + PART_ZVEL] *= this.drag;              // 2b) apply drag:
+              // 3) BOUNCE:  reversed velocity*coeff-of-restitution.
+              // ATTENTION! VERY SUBTLE PROBLEM HERE! ------------------------------
+              // need a velocity-sign test here that ensures the 'bounce' step will 
+              // always send the ball outwards, away from its wall or floor collision.        
+              if(this.s2[j + PART_ZVEL] > 0.0) 
+                  this.s2[j + PART_ZVEL] = -cList[k].Kresti * this.s2[j + PART_ZVEL]; // need sign change--bounce!
+              else 
+                  this.s2[j + PART_ZVEL] =  cList[k].Kresti * this.s2[j + PART_ZVEL];  // sign changed-- don't need another.
+            } // end of (+Z) wall constraint
+          } // end of for-loop for all particles
+        }
         break;
       case LIM_WALL:    // 2-sided wall: rectangular, axis-aligned, flat/2D,
                         // zero thickness, any desired size & position
