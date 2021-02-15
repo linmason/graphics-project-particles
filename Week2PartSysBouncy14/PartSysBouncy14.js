@@ -50,61 +50,6 @@
 //        g_partA.limitList() to implement the box that holds our particles..
 
 //==============================================================================
-// Vertex shader program:
-var VSHADER_SOURCE =
-  'precision mediump float;\n' +				// req'd in OpenGL ES if we use 'float'
-  //
-  'uniform   int u_runMode; \n' +					// particle system state: 
-  'uniform mat4 u_ModelMat;\n' +												// 0=reset; 1= pause; 2=step; 3=run
-  'attribute vec4 a_Position;\n' +
-  'varying   vec4 v_Color; \n' +
-  'void main() {\n' +
-  '  gl_PointSize = 20.0;\n' +            // TRY MAKING THIS LARGER...
-  '	 gl_Position = u_ModelMat * a_Position; \n' +	
-	// Let u_runMode determine particle color:
-  '  if(u_runMode == 0) { \n' +
-	'	   v_Color = vec4(1.0, 0.0, 0.0, 1.0);	\n' +		// red: 0==reset
-	'  	 } \n' +
-	'  else if(u_runMode == 1) {  \n' +
-	'    v_Color = vec4(1.0, 1.0, 0.0, 1.0); \n' +	// yellow: 1==pause
-	'    }  \n' +
-	'  else if(u_runMode == 2) { \n' +    
-	'    v_Color = vec4(1.0, 1.0, 1.0, 1.0); \n' +	// white: 2==step
-  '    } \n' +
-	'  else { \n' +
-	'    v_Color = vec4(0.2, 1.0, 0.2, 1.0); \n' +	// green: >=3 ==run
-	'		 } \n' +
-  '} \n';
-// Each instance computes all the on-screen attributes for just one VERTEX,
-// supplied by 'attribute vec4' variable a_Position, filled from the 
-// Vertex Buffer Object (VBO) created in g_partA.init().
-
-//==============================================================================
-// Fragment shader program:
-var FSHADER_SOURCE =
-  'precision mediump float;\n' +
-  'varying vec4 v_Color; \n' +
-  'void main() {\n' +
-  '  float dist = distance(gl_PointCoord, vec2(0.5, 0.5)); \n' + // MASON change to vec3
-  '  if(dist < 0.5) { \n' +	
-	'  	gl_FragColor = vec4((1.0-2.0*dist)*v_Color.rgb, 1.0);\n' +
-	'  } else { discard; }\n' +
-  '}\n';
-// --Each instance computes all the on-screen attributes for just one PIXEL.
-// --Draw large POINTS primitives as ROUND instead of square.  HOW?
-//   See pg. 377 in  textbook: "WebGL Programming Guide".  The vertex shaders' 
-// gl_PointSize value sets POINTS primitives' on-screen width and height, and
-// by default draws POINTS as a square on-screen.  In the fragment shader, the 
-// built-in input variable 'gl_PointCoord' gives the fragment's location within
-// that 2D on-screen square; value (0,0) at squares' lower-left corner, (1,1) at
-// upper right, and (0.5,0.5) at the center.  The built-in 'distance()' function
-// lets us discard any fragment outside the 0.5 radius of POINTS made circular.
-// (CHALLENGE: make a 'soft' point: color falls to zero as radius grows to 0.5)?
-// -- NOTE! gl_PointCoord is UNDEFINED for all drawing primitives except POINTS;
-// thus our 'draw()' function can't draw a LINE_LOOP primitive unless we turn off
-// our round-point rendering.  
-// -- All built-in variables: http://www.opengl.org/wiki/Built-in_Variable_(GLSL)
-
 // Global Variables
 // =========================
 // Use globals to avoid needlessly complex & tiresome function argument lists.
@@ -228,10 +173,11 @@ function main() {
   //}
 
   // Initialize Particle systems:
+  g_partA.initFireReeves(gl, 200);
   //g_partA.initBouncy2D(gl, 200);        // create a 2D bouncy-ball system where
                                     // 2 particles bounce within -0.9 <=x,y<0.9
                                     // and z=0.
-  g_partB.initSpringPair(gl);
+  g_partB.initSpringRope(gl, 10);
 
 
   worldBox.init(gl);    // VBO + shaders + uniforms + attribs for our 3D world,
@@ -241,7 +187,7 @@ function main() {
 
   //gl.uniformMatrix4fv(g_ModelMatLoc, false, g_ModelMat.elements);
 
-  //printControls(); 	// Display (initial) particle system values as text on webpage
+  printControls(); 	// Display (initial) particle system values as text on webpage
 	
   // Quick tutorial on synchronous, real-time animation in JavaScript/HTML-5: 
   //  	http://creativejs.com/resources/requestanimationframe/
@@ -389,11 +335,12 @@ function drawAll() {
 // -- To learn more, see: 
 // https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/getContext
 
-worldBox.switchToMe();  // Set WebGL to render from this VBObox.
-worldBox.adjust(g_ModelMat);      // Send new values for uniforms to the GPU, and
-worldBox.draw();        // draw our VBO's contents using our shaders.
-// update particle system state? 
-  if(  g_partA.runMode > 1) {					// 0=reset; 1= pause; 2=step; 3=run
+  worldBox.switchToMe();  // Set WebGL to render from this VBObox.
+  worldBox.adjust(g_ModelMat);      // Send new values for uniforms to the GPU, and
+  worldBox.draw();        // draw our VBO's contents using our shaders.
+
+  //--------------------- first particle system update
+  if(g_partA.runMode > 1) {					// 0=reset; 1= pause; 2=step; 3=run
     // YES! advance particle system(s) by 1 timestep.
 		if(g_partA.runMode == 2) { // (if runMode==2, do just one step & pause)
 		  g_partA.runMode=1;	
@@ -407,31 +354,27 @@ worldBox.draw();        // draw our VBO's contents using our shaders.
     //==========================================    
 		// Make our 'bouncy-ball' move forward by one timestep, but now the 's' key 
 		// will select which kind of solver to use by changing g_partA.solvType:
-    /*g_partA.applyForces(g_partA.s1, g_partA.forceList);  // find current net force on each particle
+    g_partA.applyForces(g_partA.s1, g_partA.forceList);  // find current net force on each particle
     g_partA.dotFinder(g_partA.s1dot, g_partA.s1); // find time-derivative s1dot from s1;
     g_partA.solver();         // find s2 from s1 & related states.
-    g_partA.doConstraints();  // Apply all constraints.  s2 is ready!
+    g_partA.doConstraints(g_partA.s1, g_partA.s2, g_partA.limitList);  // Apply all constraints.  s2 is ready!
 
   	g_partA.render(g_ModelMat);         // transfer current state to VBO, set uniforms, draw it!
 
     g_partA.swap();           // Make s2 the new current state s1.s
-*/
-    //===========================================
-
-    
 
     //===========================================
 	  }
 	else {    // runMode==0 (reset) or ==1 (pause): re-draw existing particles.
-	  //g_partA.render();
+	  g_partA.render(g_ModelMat);
 	  }
 
+  //--------------- Second Particle System Update
   if (g_partB.runMode > 1) {
     if (g_partB.runMode == 2) {
       g_partB.runMode=1;
     }
 
-    // Second Particle System Update
     g_partB.applyForces(g_partB.s1, g_partB.forceList);  // find current net force on each particle
     g_partB.dotFinder(g_partB.s1dot, g_partB.s1); // find time-derivative s1dot from s1;
     g_partB.solver();         // find s2 from s1 & related states.
@@ -447,7 +390,7 @@ worldBox.draw();        // draw our VBO's contents using our shaders.
   else {
     g_partB.render(g_ModelMat);
   }
-	//printControls();		// Display particle-system status on-screen. 
+	printControls();		// Display particle-system status on-screen. 
                       // Report mouse-drag totals since last re-draw:
 	document.getElementById('MouseResult0').innerHTML=
 			'Mouse Drag totals (CVV coords):\t' + xMdragTot.toFixed(g_digits)+
@@ -657,14 +600,6 @@ function myKeyDown(kev) {
       g_lookatTranslate = 1;
       console.log(g_lookatTranslate);
       break;
-
-    case "KeyB":                // Toggle floor-bounce constraint type
-			if(g_partA.bounceType==0) g_partA.bounceType = 1;   // impulsive vs simple
-			else g_partA.bounceType = 0;
-			document.getElementById('KeyDown').innerHTML =  
-			'myKeyDown() b/B key: toggle bounce mode.';	      // print on webpage,
-			console.log("b/B key: toggle bounce mode.");      // print on console. 
-      break;
     case "KeyC":                // Toggle screen-clearing to show 'trails'
 			g_isClear += 1;
 			if(g_isClear > 1) g_isClear = 0;
@@ -679,29 +614,12 @@ function myKeyDown(kev) {
       console.log(g_partB.s2[0 + PART_X_FTOT])
       g_partB.s2[PART_MAXVAR + PART_X_FTOT] -= 5.0;
       break;
-    case "KeyK":      // 'k'  INCREASE drag loss; 'K' to DECREASE drag loss
-      if(kev.shiftKey==false) g_partA.drag *= 0.995; // permit less movement.
-      else {
-        g_partA.drag *= 1.0 / 0.995;
-        if(g_partA.drag > 1.0) g_partA.drag = 1.0;  // don't let drag ADD energy!
-        }
-		document.getElementById('KeyDown').innerHTML =  
-		'myKeyDown() k/K key: grow/shrink drag.';	 // print on webpage,
-	  console.log("k/K: grow/shrink drag:", g_partA.drag); // print on console,
-      break;
     case "KeyF":    // 'f' or 'F' to toggle particle fountain on/off
       g_partA.isFountain += 1;
       if(g_partA.isFountain > 1) g_partA.isFountain = 0;
 	  document.getElementById('KeyDown').innerHTML =  
 	  "myKeyDown() f/F key: toggle age constraint (fountain).";	// print on webpage,
 			console.log("F: toggle age constraint (fountain)."); // print on console,
-      break;
-    case "KeyG":    // 'g' to REDUCE gravity; 'G' to increase.
-      if(kev.shiftKey==false) 		g_partA.grav *= 0.99;		// shrink 1%
-      else                        g_partA.grav *= 1.0/0.98; // grow 2%
-	  document.getElementById('KeyDown').innerHTML =  
-	  'myKeyDown() g/G key: shrink/grow gravity.';	 			// print on webpage,
-	  console.log("g/G: shrink/grow gravity:", g_partA.grav); 	// print on console,
       break;
     case "KeyM":    // 'm' to REDUCE mass; 'M' to increase.
       if(kev.shiftKey==false)     g_partA.mass *= 0.98;   // shrink 2%
@@ -721,8 +639,10 @@ function myKeyDown(kev) {
 			break;
     case "KeyR":    // r/R for RESET: 
       if(kev.shiftKey==false) {   // 'r' key: SOFT reset; boost velocity only
-  		  g_partA.runMode = 3;  // RUN!
-        var j=0; // array index for particle i
+  		  //---- refresh partsys A
+        g_partA.refresh = true;
+        g_partA.runMode = 3;  // RUN!
+        /*var j=0; // array index for particle i
         for(var i = 0; i < g_partA.partCount; i += 1, j+= PART_MAXVAR) {
           g_partA.roundRand();  // make a spherical random var.
     			if(  g_partA.s2[j + PART_XVEL] > 0.0) // ADD to positive velocity, and 
@@ -737,7 +657,28 @@ function myKeyDown(kev) {
     			if(  g_partA.s2[j + PART_ZVEL] > 0.0) 
     			     g_partA.s2[j + PART_ZVEL] += 1.7 + 0.4*g_partA.randZ*g_partA.INIT_VEL; 
     			else g_partA.s2[j + PART_ZVEL] -= 1.7 + 0.4*g_partA.randZ*g_partA.INIT_VEL;
-    			}
+    		}*/
+        g_partB.refresh = true;
+        /*
+        //---- refresh partsys B spring pair
+        g_partB.runMode = 3;  // RUN!
+        var init_pos = [[2,0,0], [-2,0,0]];
+        var init_vel = [[0,0,0], [0,0,0]];
+
+        var j = 0;  // i==particle number; j==array index for i-th particle
+        for(var i = 0; i < g_partB.partCount; i += 1, j+= PART_MAXVAR) {
+          g_partB.s2[j + PART_XPOS] = init_pos[i][0]; 
+          g_partB.s2[j + PART_YPOS] = init_pos[i][1];  
+          g_partB.s2[j + PART_ZPOS] = init_pos[i][2];
+          g_partB.s2[j + PART_WPOS] =  1.0;      // position 'w' coordinate;
+          g_partB.s2[j + PART_XVEL] =  init_vel[i][0];
+          g_partB.s2[j + PART_YVEL] =  init_vel[i][1];
+          g_partB.s2[j + PART_ZVEL] =  init_vel[i][2];
+          g_partB.s2[j + PART_MASS] =  1.0;      // mass, in kg.
+          g_partB.s2[j + PART_DIAM] =  2.0 + 10*Math.random(); // on-screen diameter, in pixels
+          g_partB.s2[j + PART_RENDMODE] = 0.0;
+          g_partB.s2[j + PART_AGE] = 30 + 100*Math.random();
+        }*/
       }
       else {      // HARD reset: position AND velocity, BOTH state vectors:
   		  g_partA.runMode = 0;			// RESET!
@@ -760,12 +701,20 @@ function myKeyDown(kev) {
 	  console.log("r/R: soft/hard Reset");      // print on console,
       break;
 		case "KeyV":
-			if(g_partA.solvType == SOLV_EULER) g_partA.solvType = SOLV_OLDGOOD;  
-			else g_partA.solvType = SOLV_EULER;     
+      var solvTypes = [SOLV_EULER, SOLV_MIDPOINT, SOLV_ADAMS_BASH, SOLV_BACK_EULER, SOLV_BACK_MIDPT];
+      var solvIndex = solvTypes.indexOf(g_partB.solvType);
+      solvIndex = (solvIndex + 1) % solvTypes.length;
+      g_partA.solvType = solvTypes[solvIndex];
+      g_partB.solvType = solvTypes[solvIndex];
 			document.getElementById('KeyDown').innerHTML =  
 			'myKeyDown() found v/V key. Switch solvers!';       // print on webpage.
-		  console.log("v/V: Change Solver:", g_partA.solvType); // print on console.
+		  console.log("v/V: Change Solver:", g_partB.solvType); // print on console.
 			break;
+    case "KeyN":
+      g_partA.push = true;
+      g_partB.push = true;
+      console.log("keydown KeyN")
+      break;
 		case "Space":
       g_partA.runMode = 2;
 	  document.getElementById('KeyDown').innerHTML =  
@@ -843,6 +792,10 @@ function myKeyUp(kev) {
     case "ArrowDown":
       g_zOffsetRate = 0;
       break;  
+    case "KeyN":
+      g_partA.push = false;
+      g_partB.push = false;
+      break;
     default:
       break;
   }
@@ -855,11 +808,44 @@ function printControls() {
 	var recipMin  = 1000.0 / g_timeStepMin;
 	var recipMax  = 1000.0 / g_timeStepMax; 
 	var solvTypeTxt;												// convert solver number to text:
-	if(g_partA.solvType==0) solvTypeTxt = 'Explicit--(unstable!)<br>';
-	                  else  solvTypeTxt = 'Implicit--(stable)<br>'; 
-	var bounceTypeTxt;											// convert bounce number to text
-	if(g_partA.bounceType==0) bounceTypeTxt = 'Velocity Reverse(no rest)<br>';
-	                     else bounceTypeTxt = 'Impulsive (will rest)<br>';
+	switch(g_partA.solvType) {
+    case 0:
+      solvTypeTxt = 'Explicit Euler(unstable!)<br>';
+      break;
+    case 1:
+      solvTypeTxt = 'Explicit Midpoint(unstable)<br>';
+      break;
+    case 2:
+      solvTypeTxt = 'Adams-Bashford<br>';
+      break;
+    case 3:
+      solvTypeTxt = 'RungeKutta<br>';
+      break;
+    case 4:
+      solvTypeTxt = 'Old Good Implicit Euler<br>';
+      break;
+    case 5:
+      solvTypeTxt = 'Implicit Euler<br>';
+      break;
+    case 6:
+      solvTypeTxt = 'Implicit Midpoint<br>';
+      break;
+    case 7:
+      solvTypeTxt = 'Implicit RungeKutta<br>';
+      break;
+    case 8:
+      solvTypeTxt = 'Verlet<br>';
+      break;
+    case 9:
+      solvTypeTxt = 'Velocity Verlet<br>';
+      break;
+    case 10:
+      solvTypeTxt = 'Leap Frog<br>';
+      break;
+    case 11:
+      solvTypeTxt = 'Max<br>';
+      break;
+  }
 	var fountainText;
 	if(g_partA.isFountain==0) fountainText = 'OFF: ageless particles.<br>';
 	else                      fountainText = 'ON: re-cycle old particles.<br>';
@@ -870,11 +856,8 @@ function printControls() {
 	
 	document.getElementById('KeyControls').innerHTML = 
    			'<b>Solver = </b>' + solvTypeTxt + 
-   			'<b>Bounce = </b>' + bounceTypeTxt +
-   			'<b>Fountain =</b>' + fountainText +
-   			'<b>drag = </b>' + g_partA.drag.toFixed(5) + 
-   			', <b>grav = </b>' + g_partA.grav.toFixed(5) +
-   			' m/s^2; <b>yVel = +/-</b> ' + yvLimit.toFixed(5) + 
+   			'<b>Fire =</b>' + fountainText +
+   			'<b>yVel = +/-</b> ' + yvLimit.toFixed(5) + 
    			' m/s; <b>xVel = +/-</b> ' + xvLimit.toFixed(5) + 
    			' m/s;<br><b>timeStep = </b> 1/' + recipTime.toFixed(3) + ' sec' +
    			                ' <b>min:</b> 1/' + recipMin.toFixed(3)  + ' sec' + 
