@@ -103,6 +103,7 @@ var g_zOffsetRate = 0;
 var g_partA = new PartSys();   // create our first particle-system object;
                               // for code, see PartSys.js
 var g_partB = new PartSys();
+var g_partC = new PartSys();
 
 worldBox = new VBObox0();     // Holds VBO & shaders for 3D 'world' ground-plane grid, etc;
 
@@ -178,7 +179,7 @@ function main() {
                                     // 2 particles bounce within -0.9 <=x,y<0.9
                                     // and z=0.
   g_partB.initSpringRope(gl, 10);
-
+  g_partC.initTornado(gl, 200);
 
   worldBox.init(gl);    // VBO + shaders + uniforms + attribs for our 3D world,
 
@@ -390,6 +391,29 @@ function drawAll() {
   else {
     g_partB.render(g_ModelMat);
   }
+
+  //--------------- Third Particle System Update
+  if (g_partC.runMode > 1) {
+    if (g_partC.runMode == 2) {
+      g_partC.runMode=1;
+    }
+
+    g_partC.applyForces(g_partC.s1, g_partC.forceList);  // find current net force on each particle
+    g_partC.dotFinder(g_partC.s1dot, g_partC.s1); // find time-derivative s1dot from s1;
+    g_partC.solver();         // find s2 from s1 & related states.
+    g_partC.doConstraints(g_partC.s1, g_partC.s2, g_partC.limitList);  // Apply all constraints.  s2 is ready!
+
+    modelMat = new Matrix4();
+    modelMat.set(g_ModelMat)
+    modelMat.translate(5,5,0,1);
+    g_partC.render(modelMat);         // transfer current state to VBO, set uniforms, draw it!
+
+    g_partC.swap();           // Make s2 the new current state s1.s
+  }
+  else {
+    g_partC.render(g_ModelMat);
+  }
+
 	printControls();		// Display particle-system status on-screen. 
                       // Report mouse-drag totals since last re-draw:
 	document.getElementById('MouseResult0').innerHTML=
@@ -553,6 +577,7 @@ function myKeyDown(kev) {
     case "Digit0":
 			g_partA.runMode = 0;			// RESET!
       g_partB.runMode = 0;
+      g_partC.runMode = 0;
 			document.getElementById('KeyDown').innerHTML =  
 			'myKeyDown() digit 0 key. Run Mode 0: RESET!';    // print on webpage,
 			console.log("Run Mode 0: RESET!");                // print on console.
@@ -560,6 +585,7 @@ function myKeyDown(kev) {
     case "Digit1":
 			g_partA.runMode = 1;			// PAUSE!
       g_partB.runMode = 1;
+      g_partC.runMode = 1;
 			document.getElementById('KeyDown').innerHTML =  
 			'myKeyDown() digit 1 key. Run Mode 1: PAUSE!';    // print on webpage,
 			console.log("Run Mode 1: PAUSE!");                // print on console.
@@ -567,6 +593,7 @@ function myKeyDown(kev) {
     case "Digit2":
 			g_partA.runMode = 2;			// STEP!
       g_partB.runMode = 2;
+      g_partC.runMode = 2;
 			document.getElementById('KeyDown').innerHTML =  
 			'myKeyDown() digit 2 key. Run Mode 2: STEP!';     // print on webpage,
 			console.log("Run Mode 2: STEP!");                 // print on console.
@@ -633,6 +660,8 @@ function myKeyDown(kev) {
 						  else g_partA.runMode = 3;		          // if paused, run.
     if(g_partB.runMode == 3) g_partB.runMode = 1;   // if running, pause
               else g_partB.runMode = 3;             // if paused, run.
+    if(g_partC.runMode == 3) g_partC.runMode = 1;   // if running, pause
+              else g_partC.runMode = 3;             // if paused, run.
 	  document.getElementById('KeyDown').innerHTML =  
 			  'myKeyDown() p/P key: toggle Pause/unPause!';    // print on webpage
 	  console.log("p/P key: toggle Pause/unPause!");   			// print on console,
@@ -659,6 +688,7 @@ function myKeyDown(kev) {
     			else g_partA.s2[j + PART_ZVEL] -= 1.7 + 0.4*g_partA.randZ*g_partA.INIT_VEL;
     		}*/
         g_partB.refresh = true;
+        g_partC.refresh = true;
         /*
         //---- refresh partsys B spring pair
         g_partB.runMode = 3;  // RUN!
@@ -706,6 +736,7 @@ function myKeyDown(kev) {
       solvIndex = (solvIndex + 1) % solvTypes.length;
       g_partA.solvType = solvTypes[solvIndex];
       g_partB.solvType = solvTypes[solvIndex];
+      g_partC.solvType = solvTypes[solvIndex];
 			document.getElementById('KeyDown').innerHTML =  
 			'myKeyDown() found v/V key. Switch solvers!';       // print on webpage.
 		  console.log("v/V: Change Solver:", g_partB.solvType); // print on console.
@@ -713,6 +744,7 @@ function myKeyDown(kev) {
     case "KeyN":
       g_partA.push = true;
       g_partB.push = true;
+      g_partC.push = true;
       console.log("keydown KeyN")
       break;
 		case "Space":
@@ -795,6 +827,7 @@ function myKeyUp(kev) {
     case "KeyN":
       g_partA.push = false;
       g_partB.push = false;
+      g_partC.push = false;
       break;
     default:
       break;
