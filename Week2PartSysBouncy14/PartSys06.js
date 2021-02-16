@@ -438,10 +438,10 @@ PartSys.prototype.initFireReeves = function(gl, count) {
   'varying vec4 v_Color; \n' +
   'void main() {\n' +
   '  float dist = distance(gl_PointCoord, vec2(0.5, 0.5)); \n' + 
-  //'  if(dist < 0.5) { \n' + 
-  //'   gl_FragColor = vec4((1.0-2.0*dist)*v_Color.rgb, 1.0);\n' +
+  '  if(dist < 0.5) { \n' + 
+  '   gl_FragColor = vec4((1.0-2.0*dist)*v_Color.rgb, 1.0);\n' +
   '   gl_FragColor = v_Color;\n' +
-  //'  } else { discard; }\n' +
+  '  } else { discard; }\n' +
   '}\n';
 
   // Create all state-variables-------------------------------------------------
@@ -508,9 +508,9 @@ PartSys.prototype.initFireReeves = function(gl, count) {
   cTmp.targFirst = 0;             // applies to ALL particles; starting at 0 
   cTmp.partCount = -1;            // through all the rest of them.
   cTmp.xMin = 0.0;
-  cTmp.yMin = 0.0;
+  cTmp.yMin = 0.5;
   cTmp.zMin = 0.0;
-  cTmp.radius = 0.5;
+  cTmp.radius = 0.1;
   cTmp.Kresti = 1.0;              // bouncyness: coeff. of restitution.
                                   // (and IGNORE all other CLimit members...)
   this.limitList.push(cTmp);      // append this 'box' constraint object to the
@@ -1739,31 +1739,61 @@ PartSys.prototype.doConstraints = function(sNow, sNext, cList) {
         var j = m*PART_MAXVAR;  // state var array index for particle # m
         for(var i = 0; i < mmax; i += 1, j+= PART_MAXVAR) {
           // find delta x,y,z using xMin,yMin,zMin as center
-          var delt = [this.s2[j+PART_XPOS]-cList[k].xMin, this.s2[j+PART_YPOS]-cList[k].yMin, this.s2[j+PART_ZPOS]-cList[k].zMin];
-          var neg_delt = [cList[k].xMin-this.s2[j+PART_XPOS],cList[k].yMin-this.s2[j+PART_YPOS],cList[k].zMin-this.s2[j+PART_ZPOS]]
+          var delt1 = [this.s1[j+PART_XPOS]-cList[k].xMin, this.s1[j+PART_YPOS]-cList[k].yMin, this.s1[j+PART_ZPOS]-cList[k].zMin];
+          var delt2 = [this.s2[j+PART_XPOS]-cList[k].xMin, this.s2[j+PART_YPOS]-cList[k].yMin, this.s2[j+PART_ZPOS]-cList[k].zMin];
+          var neg_delt2 = [cList[k].xMin-this.s2[j+PART_XPOS],cList[k].yMin-this.s2[j+PART_YPOS],cList[k].zMin-this.s2[j+PART_ZPOS]]
 
           // find normalized dx,dy,dz vector
-          var norm_delt = new Vector3(delt);
-          norm_delt = norm_delt.normalize();
+          var norm_delt2 = new Vector3(delt2);
+          norm_delt2 = norm_delt2.normalize();
 
           // find negated normalized delta vector
-          var neg_norm_delt = new Vector3(neg_delt);
-          neg_norm_delt = neg_norm_delt.normalize();
+          var neg_norm_delt2 = new Vector3(neg_delt2);
+          neg_norm_delt2 = neg_norm_delt2.normalize();
 
-          // if magnitude of delta vector < radius
-          if (Math.sqrt(delt[0]*delt[0] + delt[1]*delt[1] + delt[2]*delt[2]) <= cList[k].radius) {
-            // turn velo to vector3
-            var Velo = new Vector3([this.s2[j + PART_XVEL], this.s2[j + PART_YVEL], this.s2[j + PART_ZVEL]]);
+          // turn velo to vector3
+          var Velo = new Vector3([this.s2[j + PART_XVEL], this.s2[j + PART_YVEL], this.s2[j + PART_ZVEL]]);
+
+          // if magnitude of delta vector <= radius in s2, > radius in s1, thus entering
+          var delt2_magn = Math.sqrt(delt2[0]*delt2[0] + delt2[1]*delt2[1] + delt2[2]*delt2[2]);
+          var delt1_magn = Math.sqrt(delt1[0]*delt1[0] + delt1[1]*delt1[1] + delt1[2]*delt1[2]);
+          if (delt2_magn <= cList[k].radius && delt1_magn > cList[k].radius) {
 
             // find component of velocity normal to sphere surface
-            var V_dot_N = Velo.dot(neg_norm_delt);
-            var norm_V = [V_dot_N*neg_norm_delt.elements[0], V_dot_N*neg_norm_delt.elements[1], V_dot_N*neg_norm_delt.elements[2]];
+            var V_dot_N = Velo.dot(neg_norm_delt2);
+            var norm_V = [V_dot_N*neg_norm_delt2.elements[0], V_dot_N*neg_norm_delt2.elements[1], V_dot_N*neg_norm_delt2.elements[2]]
 
-            // ?? reset position to sphere surface
-            // remove normal component of velocity in s2
-            this.s2[j + PART_XVEL] -= 2 * norm_V[0];
-            this.s2[j + PART_YVEL] -= 2 * norm_V[1];
-            this.s2[j + PART_ZVEL] -= 2 * norm_V[2];
+            // if still moving in
+            if (V_dot_N > 0) {
+              // ?? reset position to sphere surface
+              this.s2[j + PART_XPOS] = norm_delt2.elements[0] * cList[k].radius;
+              this.s2[j + PART_YPOS] = norm_delt2.elements[1] * cList[k].radius;
+              this.s2[j + PART_ZPOS] = norm_delt2.elements[2] * cList[k].radius;
+
+              // remove normal component of velocity in s2
+              this.s2[j + PART_XVEL] -= 2 * norm_V[0];
+              this.s2[j + PART_YVEL] -= 2 * norm_V[1];
+              this.s2[j + PART_ZVEL] -= 2 * norm_V[2];
+            }
+          }
+
+          // if magn of delta vector > radius in s2, <= radius in s1, thus exiting
+          else if (delt2_magn > cList[k].radius && delt1_magn <= cList[k].radius) {
+            // find component of velocity normal to sphere surface
+            var V_dot_N = Velo.dot(norm_delt2);
+            var norm_V = [V_dot_N*norm_delt2.elements[0], V_dot_N*norm_delt2.elements[1], V_dot_N*norm_delt2.elements[2]];
+            // if still moving out
+            if (V_dot_N > 0) {
+              // ?? reset position to sphere surface
+              this.s2[j + PART_XPOS] = norm_delt2.elements[0] * cList[k].radius;
+              this.s2[j + PART_YPOS] = norm_delt2.elements[1] * cList[k].radius;
+              this.s2[j + PART_ZPOS] = norm_delt2.elements[2] * cList[k].radius;
+
+              // remove normal component of velocity in s2
+              this.s2[j + PART_XVEL] -= 2 * norm_V[0];
+              this.s2[j + PART_YVEL] -= 2 * norm_V[1];
+              this.s2[j + PART_ZVEL] -= 2 * norm_V[2];
+            }
           }
         }
         break;
@@ -1800,7 +1830,6 @@ PartSys.prototype.doConstraints = function(sNow, sNext, cList) {
                 this.s2[j + PART_XVEL] -= 2 * v_dot_n * cList[k].N_vec.elements[0];
                 this.s2[j + PART_YVEL] -= 2 * v_dot_n * cList[k].N_vec.elements[1];
                 this.s2[j + PART_ZVEL] -= 2 * v_dot_n * cList[k].N_vec.elements[2];
-                console.log("bounce moving down");
               }
             }
             // if moved up
@@ -1812,7 +1841,6 @@ PartSys.prototype.doConstraints = function(sNow, sNext, cList) {
                 this.s2[j + PART_XVEL] -= 2 * v_dot_n * cList[k].N_vec.elements[0];
                 this.s2[j + PART_YVEL] -= 2 * v_dot_n * cList[k].N_vec.elements[1];
                 this.s2[j + PART_ZVEL] -= 2 * v_dot_n * cList[k].N_vec.elements[2];
-                console.log("bounce moving up")
               }
             }
           }
