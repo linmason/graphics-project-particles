@@ -970,7 +970,67 @@ PartSys.prototype.initSpringRope = function(gl, count) {
 
   this.limitList.push(cTmp);      // append this 'box' constraint object to the
                                   // 'limitList' array of constraint-causing objects.      
-                                                      
+
+  var cTmp = new CLimit();      // creat constraint-causing object, and
+  cTmp.hitType = HIT_BOUNCE_VEL;  // set how particles 'bounce' from its surface,
+  cTmp.limitType = LIM_VOL;       // confine particles inside axis-aligned 
+                                  // rectangular volume that
+  cTmp.targFirst = 0;             // applies to ALL particles; starting at 0 
+  cTmp.partCount = -1;            // through all the rest of them.
+  cTmp.xMin = -5.0; cTmp.xMax = 5.0;  // box extent:  +/- 1.0 box at origin
+  cTmp.yMin = -5.0; cTmp.yMax = 5.0;
+  cTmp.zMin = -5.0; cTmp.zMax = 5.0;
+  cTmp.Kresti = 1.0;              // bouncyness: coeff. of restitution.
+                                  // (and IGNORE all other CLimit members...)
+  this.limitList.push(cTmp);      // append this 'box' constraint object to the
+                                  // 'limitList' array of constraint-causing objects.
+
+  var cTmp = new CLimit();      // creat constraint-causing object, and
+  cTmp.hitType = HIT_BOUNCE_VEL;  // set how particles 'bounce' from its surface,
+  cTmp.limitType = LIM_MAT_WALL;       // confine particles inside axis-aligned 
+                                  // rectangular volume that
+  cTmp.targFirst = 0;             // applies to ALL particles; starting at 0 
+  cTmp.partCount = -1;            // through all the rest of them.
+  cTmp.Kresti = 1.0;              // bouncyness: coeff. of restitution.
+                                  // (and IGNORE all other CLimit members...)
+  var W_vec = [0, -1, 0];
+  var L_vec = new Vector3([0, 1, 1]);
+  var M_vec = new Vector3([-1, 0, 0]);
+  cTmp.Lmax = 5.0;
+  cTmp.Mmax = 5.0;
+
+  //------rest is calculations for world2wall matrix and normalized L,M,N vectors and Lmax and Mmax
+
+  var N_vec = L_vec.cross(M_vec);
+  L_vec = L_vec.normalize();
+  M_vec = M_vec.normalize();
+  N_vec = N_vec.normalize();
+  cTmp.L_vec = L_vec;
+  cTmp.M_vec = M_vec;
+  cTmp.N_vec = N_vec;
+  var L = L_vec.elements;
+  var M = M_vec.elements;
+  var N = N_vec.elements;
+  console.log("LMN vectors")
+  console.log(cTmp.L_vec)
+  console.log(cTmp.M_vec)
+  console.log(cTmp.N_vec)
+
+  cTmp.poseMatrix.elements = new Float32Array([L[0],M[0],N[0],0, L[1],M[1],N[1],0, L[2],M[2],N[2],0, 0,0,0,1]);
+  cTmp.poseMatrix.printMe();
+  var wMatrix = new Matrix4();
+  wMatrix.setIdentity();
+  wMatrix.elements[12] = -1 * W_vec[0];
+  wMatrix.elements[13] = -1 * W_vec[1];
+  wMatrix.elements[14] = -1 * W_vec[2];
+  wMatrix.printMe();
+  cTmp.poseMatrix.multiply(wMatrix);
+  cTmp.poseMatrix.printMe();
+  //------------
+
+  this.limitList.push(cTmp);      // append this 'box' constraint object to the
+                                  // 'limitList' array of constraint-causing objects.
+
   // Report:
   console.log("PartSys.initBouncy2D() created PartSys.limitList[] array of ");
   console.log("\t\t", this.limitList.length, "CLimit objects.");
@@ -1541,115 +1601,11 @@ PartSys.prototype.doConstraints = function(sNow, sNext, cList) {
                         //      and OUTSIDE if xMin>xMax, yMin>yMax, zMin>xMax.
         // if min and max switched restrict particles outside
         if (cList[k].xMin > cList[k].xMax && cList[k].yMin > cList[k].yMax && cList[k].zMin > cList[k].zMax) {
-          var j = m*PART_MAXVAR;  // state var array index for particle # m
-          for(var i = 0; i < mmax; i += 1, j+= PART_MAXVAR) {
-            //--------  between (X) walls  ----------
-            if( this.s2[j + PART_XPOS] < (cList[k].xMin + 0.1) && this.s2[j + PART_XPOS] > (cList[k].xMax - 0.1)) {
-            // collision!
-              //this.s2[j + PART_XPOS] = (cList[k].xMin + 0.1);// 1) resolve contact: put particle at wall.
-              this.s2[j + PART_XVEL] = this.s1[j + PART_XVEL];  // 2a) undo velocity change:
-              //this.s2[j + PART_XVEL] *= this.drag;              // 2b) apply drag:
-              // 3) BOUNCE:  reversed velocity*coeff-of-restitution.
-              // ATTENTION! VERY SUBTLE PROBLEM HERE!
-              // need a velocity-sign test here that ensures the 'bounce' step will 
-              // always send the ball outwards, away from its wall or floor collision. 
-              // if going 
-              var isNearxMin = (cList[k].xMin - this.s2[j + PART_XPOS]) < (this.s2[j + PART_XPOS] - cList[k].xMax);
-              var isNearxMax = (cList[k].xMin - this.s2[j + PART_XPOS]) > (this.s2[j + PART_XPOS] - cList[k].xMax);
-              var isEnterFromxMin = this.s2[j + PART_XVEL] < 0.0 && isNearxMin;
-              var isEnterFromxMax = this.s2[j + PART_XVEL] > 0.0 && isNearxMax;
-              if (isNearxMin) {
-                this.s2[j + PART_XPOS] = (cList[k].xMin + 0.1);
-              }
-              else if (isNearxMax) {
-                this.s2[j + PART_XPOS] = (cList[k].xMax - 0.1);
-              }
-              if(isEnterFromxMin) {
-                this.s2[j + PART_XVEL] = -cList[k].Kresti * this.s2[j + PART_XVEL]; // need sign change--bounce!
-                console.log("x reverse")
-              }
-              else if(isEnterFromxMax) {
-                this.s2[j + PART_XVEL] = -cList[k].Kresti * this.s2[j + PART_XVEL]; // need sign change--bounce!
-                console.log("x reverse")
-              }
-              else {
-                console.log("x continue")
-                this.s2[j + PART_XVEL] =  cList[k].Kresti * this.s2[j + PART_XVEL]; // sign changed-- don't need another.
-              }
-            }
-            //--------  between (Y) walls  ----------
-            if( this.s2[j + PART_YPOS] < (cList[k].yMin + 0.1) && this.s2[j + PART_YPOS] > (cList[k].yMax - 0.1)) {
-            // collision!
-              //this.s2[j + PART_YPOS] = (cList[k].yMin + 0.1);// 1) resolve contact: put particle at wall.
-              this.s2[j + PART_YVEL] = this.s1[j + PART_YVEL];  // 2a) undo velocity change:
-              //this.s2[j + PART_YVEL] *= this.drag;              // 2b) apply drag:
-              // 3) BOUNCE:  reversed velocity*coeff-of-restitution.
-              // ATTENTION! VERY SUBTLE PROBLEM HERE!
-              // need a velocity-sign test here that ensures the 'bounce' step will 
-              // always send the ball outwards, away from its wall or floor collision. 
-              // if going 
-              var isNearyMin = (cList[k].yMin - this.s2[j + PART_YPOS]) < (this.s2[j + PART_YPOS] - cList[k].yMax);
-              var isNearyMax = (cList[k].yMin - this.s2[j + PART_XPOS]) > (this.s2[j + PART_YPOS] - cList[k].yMax);
-              var isEnterFromyMin = this.s2[j + PART_YVEL] < 0.0 && isNearyMin;
-              var isEnterFromyMax = this.s2[j + PART_YVEL] > 0.0 && isNearyMax;
-              if (isNearyMin) {
-                this.s2[j + PART_YPOS] = (cList[k].yMin + 0.1);
-              }
-              else if (isNearyMax) {
-                this.s2[j + PART_YPOS] = (cList[k].yMax - 0.1);
-              }
-              if(isEnterFromyMin) {
-                this.s2[j + PART_YVEL] = -cList[k].Kresti * this.s2[j + PART_YVEL]; // need sign change--bounce!
-                console.log("y reverse")
-              }
-              else if(isEnterFromyMax) {
-                this.s2[j + PART_YVEL] = -cList[k].Kresti * this.s2[j + PART_YVEL]; // need sign change--bounce!
-                console.log("y reverse")
-              }
-              else {
-                console.log("y continue")
-                this.s2[j + PART_YVEL] =  cList[k].Kresti * this.s2[j + PART_YVEL]; // sign changed-- don't need another.
-              }
-            }
-            //--------  between (Z) walls  ----------
-            if( this.s2[j + PART_ZPOS] < (cList[k].zMin + 0.1) && this.s2[j + PART_ZPOS] > (cList[k].zMax - 0.1)) {
-            // collision!
-              //this.s2[j + PART_ZPOS] = (cList[k].zMin + 0.1);// 1) resolve contact: put particle at wall.
-              this.s2[j + PART_ZVEL] = this.s1[j + PART_ZVEL];  // 2a) undo velocity change:
-              //this.s2[j + PART_ZVEL] *= this.drag;              // 2b) apply drag:
-              // 3) BOUNCE:  reversed velocity*coeff-of-restitution.
-              // ATTENTION! VERY SUBTLE PROBLEM HERE!
-              // need a velocity-sign test here that ensures the 'bounce' step will 
-              // always send the ball outwards, away from its wall or floor collision. 
-              // if going 
-              var isNearzMin = (cList[k].zMin - this.s2[j + PART_ZPOS]) < (this.s2[j + PART_ZPOS] - cList[k].zMax);
-              var isNearzMax = (cList[k].zMin - this.s2[j + PART_ZPOS]) > (this.s2[j + PART_ZPOS] - cList[k].zMax);
-              var isEnterFromzMin = this.s2[j + PART_ZVEL] < 0.0 && isNearzMin;
-              var isEnterFromzMax = this.s2[j + PART_ZVEL] > 0.0 && isNearzMax;
-              if (isNearzMin) {
-                this.s2[j + PART_ZPOS] = (cList[k].zMin + 0.1);
-              }
-              else if (isNearzMax) {
-                this.s2[j + PART_ZPOS] = (cList[k].zMax - 0.1);
-              }
-              if(isEnterFromzMin) {
-                this.s2[j + PART_ZVEL] = -cList[k].Kresti * this.s2[j + PART_ZVEL]; // need sign change--bounce!
-                console.log("z reverse")
-              }
-              else if(isEnterFromzMax) {
-                this.s2[j + PART_ZVEL] = -cList[k].Kresti * this.s2[j + PART_ZVEL]; // need sign change--bounce!
-                console.log("z reverse")
-              }
-              else {
-                console.log("z continue")
-                this.s2[j + PART_ZVEL] =  cList[k].Kresti * this.s2[j + PART_ZVEL]; // sign changed-- don't need another.
-              }
-            }
+          console.log("keeping out of volume not supported at the moment")
           }
-        }
         // bounding box to keep particles in
         else {
-          console.log(k);
+          //console.log(k);
           var j = m*PART_MAXVAR;  // state var array index for particle # m
           for(var i = 0; i < mmax; i += 1, j+= PART_MAXVAR) {
             //--------  left (-X) wall  ----------
@@ -1664,10 +1620,10 @@ PartSys.prototype.doConstraints = function(sNow, sNext, cList) {
               // always send the ball outwards, away from its wall or floor collision. 
               if( this.s2[j + PART_XVEL] < 0.0) {
                   this.s2[j + PART_XVEL] = -cList[k].Kresti * this.s2[j + PART_XVEL]; // need sign change--bounce!
-                  console.log("-x reverse")
+                  //console.log("-x reverse")
               }
               else {
-                  console.log("-x continue")
+                  //console.log("-x continue")
                   this.s2[j + PART_XVEL] =  cList[k].Kresti * this.s2[j + PART_XVEL]; // sign changed-- don't need another.
               }
             }
@@ -1683,10 +1639,10 @@ PartSys.prototype.doConstraints = function(sNow, sNext, cList) {
               // always send the ball outwards, away from its wall or floor collision. 
               if(this.s2[j + PART_XVEL] > 0.0) {
                   this.s2[j + PART_XVEL] = -cList[k].Kresti * this.s2[j + PART_XVEL]; // need sign change--bounce!
-                  console.log("+x reverse");
+                  //console.log("+x reverse");
               }
               else {
-                  console.log("+x continue")
+                  //console.log("+x continue")
                   this.s2[j + PART_XVEL] =  cList[k].Kresti * this.s2[j + PART_XVEL];  // sign changed-- don't need another.
               }
             }
@@ -1755,6 +1711,7 @@ PartSys.prototype.doConstraints = function(sNow, sNext, cList) {
         break;
       case LIM_WALL:    // 2-sided wall: rectangular, axis-aligned, flat/2D,
                         // zero thickness, any desired size & position
+
         break;
       case LIM_DISC:    // 2-sided ellipsoidal wall, axis-aligned, flat/2D,
                         // zero thickness, any desired size & position
@@ -1762,6 +1719,55 @@ PartSys.prototype.doConstraints = function(sNow, sNext, cList) {
       case LIM_BOX:
         break;
       case LIM_MAT_WALL:
+        var j = m*PART_MAXVAR;  // state var array index for particle # m
+        var p1 = new Vector4();
+        var p2 = new Vector4();
+        var p1_wall = new Vector4();
+        var p2_wall = new Vector4();
+
+        for(var i = 0; i < mmax; i += 1, j+= PART_MAXVAR) {
+          // get s1, s2 positions in wall coordinates
+          p1 = new Vector4([this.s1[j + PART_XPOS], this.s1[j + PART_YPOS], this.s1[j + PART_ZPOS], 1]);
+          p2 = new Vector4([this.s2[j + PART_XPOS], this.s2[j + PART_YPOS], this.s2[j + PART_ZPOS], 1]);
+          p1_wall = cList[k].poseMatrix.multiplyVector4(p1);
+          p2_wall = cList[k].poseMatrix.multiplyVector4(p2);
+          p1_L = p1_wall.elements[0];
+          p1_M = p1_wall.elements[1];
+          p1_N = p1_wall.elements[2];
+
+          p2_L = p2_wall.elements[0];
+          p2_M = p2_wall.elements[1];
+          p2_N = p2_wall.elements[2];
+
+          // if within wall boundaries
+          if ((p2_L*p2_L) <= (cList[k].Lmax*cList[k].Lmax) && (p2_M*p2_M) <= (cList[k].Mmax*cList[k].Mmax)) {
+            // if moved down
+            if (p1_N > 0 && p2_N <= 0) {
+              // if still moving down, bounce
+              var v2 = [this.s2[j + PART_XVEL], this.s2[j + PART_YVEL], this.s2[j + PART_ZVEL]];
+              var v_dot_n = v2[0]*cList[k].N_vec.elements[0] + v2[1]*cList[k].N_vec.elements[1] + v2[2]*cList[k].N_vec.elements[2];
+              if (v_dot_n < 0) {
+                this.s2[j + PART_XVEL] -= 2 * v_dot_n * cList[k].N_vec.elements[0];
+                this.s2[j + PART_YVEL] -= 2 * v_dot_n * cList[k].N_vec.elements[1];
+                this.s2[j + PART_ZVEL] -= 2 * v_dot_n * cList[k].N_vec.elements[2];
+                console.log("bounce moving down");
+              }
+            }
+            // if moved up
+            else if (p1_N <= 0 && p2_N > 0) {
+              // if still moving up, bounce
+              var v2 = [this.s2[j + PART_XVEL], this.s2[j + PART_YVEL], this.s2[j + PART_ZVEL]];
+              var v_dot_n = v2[0]*cList[k].N_vec.elements[0] + v2[1]*cList[k].N_vec.elements[1] + v2[2]*cList[k].N_vec.elements[2];
+              if (v_dot_n > 0) {
+                this.s2[j + PART_XVEL] -= 2 * v_dot_n * cList[k].N_vec.elements[0];
+                this.s2[j + PART_YVEL] -= 2 * v_dot_n * cList[k].N_vec.elements[1];
+                this.s2[j + PART_ZVEL] -= 2 * v_dot_n * cList[k].N_vec.elements[2];
+                console.log("bounce moving up")
+              }
+            }
+          }
+        }
+
         break;
       case LIM_MAT_DISC:
         break;

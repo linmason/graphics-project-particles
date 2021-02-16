@@ -155,6 +155,13 @@ function CLimit() {
                                   // axes to 'pose' axes where we define 'wall'
                                   // and other non-axis-aligned constraints.
   this.radius = 1.0;        // hard/solid particle size imposed by by LIM_RADIUS
+
+  // L,M,N of wall, normalized, Lmax, Mmax magnitude of L,M vectors
+  this.L_vec = new Vector3();
+  this.M_vec = new Vector3();
+  this.N_vec = new Vector3();
+  this.Lmax = 0.0;
+  this.Mmax = 0.0;
 }
 
 CLimit.prototype.printMe = function(opt_src) {
