@@ -174,12 +174,12 @@ function main() {
   //}
 
   // Initialize Particle systems:
-  g_partA.initFireReeves(gl, 200);
+  g_partA.initFireReeves(gl, 600);
   //g_partA.initBouncy2D(gl, 200);        // create a 2D bouncy-ball system where
                                     // 2 particles bounce within -0.9 <=x,y<0.9
                                     // and z=0.
   g_partB.initSpringRope(gl, 10);
-  g_partC.initTornado(gl, 200);
+  g_partC.initTornado(gl, 300);
 
   worldBox.init(gl);    // VBO + shaders + uniforms + attribs for our 3D world,
 
@@ -405,7 +405,7 @@ function drawAll() {
 
     modelMat = new Matrix4();
     modelMat.set(g_ModelMat)
-    modelMat.translate(5,5,0,1);
+    modelMat.translate(3,-3,0,1);
     g_partC.render(modelMat);         // transfer current state to VBO, set uniforms, draw it!
 
     g_partC.swap();           // Make s2 the new current state s1.s

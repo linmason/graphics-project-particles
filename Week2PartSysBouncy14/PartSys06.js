@@ -412,7 +412,7 @@ PartSys.prototype.initFireReeves = function(gl, count) {
   'attribute float a_Age;\n' +
   'varying   vec4 v_Color; \n' +
   'void main() {\n' +
-  '  gl_PointSize = 20.0;\n' +            // TRY MAKING THIS LARGER...
+  '  gl_PointSize = 10.0;\n' +            // TRY MAKING THIS LARGER...
   '  gl_Position = u_ModelMat * a_Position; \n' + 
   // Let u_runMode determine particle color:
   '  if(u_runMode == 0) { \n' +
@@ -656,7 +656,7 @@ PartSys.prototype.initTornado = function(gl, count) {
   'attribute vec4 a_Position;\n' +
   'varying   vec4 v_Color; \n' +
   'void main() {\n' +
-  '  gl_PointSize = 20.0;\n' +            // TRY MAKING THIS LARGER...
+  '  gl_PointSize = 10.0;\n' +            // TRY MAKING THIS LARGER...
   '  gl_Position = u_ModelMat * a_Position; \n' + 
   // Let u_runMode determine particle color:
   '  if(u_runMode == 0) { \n' +
@@ -721,8 +721,19 @@ PartSys.prototype.initTornado = function(gl, count) {
                                   // (and IGNORE all other Cforcer members...)
   this.forceList.push(fTmp);      // append this 'gravity' force object to 
                                   // the forceList array of force-causing objects.
+
+  fTmp = new CForcer();           // create a NEW CForcer object 
+                                  // (WARNING! until we do this, fTmp refers to
+                                  // the same memory locations as forceList[0]!!!) 
+  fTmp.forceType = F_WIND;        // Viscous Drag
+  fTmp.targFirst = 0;             // apply it to ALL particles:
+  fTmp.partCount = -1;            // (negative value means ALL particles)
+                                  // (and IGNORE all other Cforcer members...)
+  this.forceList.push(fTmp);      // append this 'gravity' force object to 
+                                  // the forceList array of force-causing objects.
+
   // Report:
-  console.log("PartSys.initBouncy2D() created PartSys.forceList[] array of ");
+  console.log("PartSys.initTornado() created PartSys.forceList[] array of ");
   console.log("\t\t", this.forceList.length, "CForcer objects:");
   for(i=0; i<this.forceList.length; i++) {
     console.log("CForceList[",i,"]");
@@ -736,9 +747,9 @@ PartSys.prototype.initTornado = function(gl, count) {
                                   // rectangular volume that
   cTmp.targFirst = 0;             // applies to ALL particles; starting at 0 
   cTmp.partCount = -1;            // through all the rest of them.
-  cTmp.xMin = -1.0; cTmp.xMax = 1.0;  // box extent:  +/- 1.0 box at origin
-  cTmp.yMin = -1.0; cTmp.yMax = 1.0;
-  cTmp.zMin = -1.0; cTmp.zMax = 1.0;
+  cTmp.xMin = -2.0; cTmp.xMax = 2.0;  // box extent:  +/- 1.0 box at origin
+  cTmp.yMin = -2.0; cTmp.yMax = 2.0;
+  cTmp.zMin = -2.0; cTmp.zMax = 2.0;
   cTmp.Kresti = 1.0;              // bouncyness: coeff. of restitution.
                                   // (and IGNORE all other CLimit members...)
   this.limitList.push(cTmp);      // append this 'box' constraint object to the
@@ -751,19 +762,20 @@ PartSys.prototype.initTornado = function(gl, count) {
   cTmp.targFirst = 0;             // applies to ALL particles; starting at 0 
   cTmp.partCount = -1;            // through all the rest of them.
   cTmp.xMin = 0.0;
-  cTmp.yMin = 0.7;
+  cTmp.yMin = 1.0;
   cTmp.zMin = 0.0;
-  cTmp.radius = 1;
+  cTmp.radius = 2.0;
   cTmp.Kresti = 1.0;              // bouncyness: coeff. of restitution.
                                   // (and IGNORE all other CLimit members...)
   this.limitList.push(cTmp);      // append this 'box' constraint object to the
                                   // 'limitList' array of constraint-causing objects.
+                                  
 
   // Report:
   console.log("PartSys.initBouncy2D() created PartSys.limitList[] array of ");
   console.log("\t\t", this.limitList.length, "CLimit objects.");
 
-  this.INIT_VEL =  0.15 * 60.0;   // initial velocity in meters/sec.
+  this.INIT_VEL =  0.04 * 60.0;   // initial velocity in meters/sec.
                     // adjust by ++Start, --Start buttons. Original value 
                     // was 0.15 meters per timestep; multiply by 60 to get
                     // meters per second.
@@ -793,7 +805,7 @@ PartSys.prototype.initTornado = function(gl, count) {
     this.s1[j + PART_WPOS] =  1.0;      // position 'w' coordinate;
     this.roundRand(); // Now choose random initial velocities too:
     this.s1[j + PART_XVEL] =  this.INIT_VEL*(0.4 + 0.2*this.randX);
-    this.s1[j + PART_YVEL] =  this.INIT_VEL*(0.4 + 0.2*this.randY);
+    //this.s1[j + PART_YVEL] =  this.INIT_VEL*(0.4 + 0.2*this.randY);
     this.s1[j + PART_ZVEL] =  this.INIT_VEL*(0.4 + 0.2*this.randZ);
     this.s1[j + PART_MASS] =  1.0;      // mass, in kg.
     this.s1[j + PART_DIAM] =  2.0 + 10*Math.random(); // on-screen diameter, in pixels
@@ -1463,8 +1475,39 @@ PartSys.prototype.applyForces = function(s, fList) {
                                   fList[k].forceType, "NOT YET IMPLEMENTED!!");
        break;
       case F_WIND:      // Blowing-wind-like force-field; fcn of 3D position
-        console.log("PartSys.applyForces(), fList[",k,"].forceType:", 
-                                  fList[k].forceType, "NOT YET IMPLEMENTED!!");
+        var j = m*PART_MAXVAR;  // state var array index for particle # m
+        for(; m<mmax; m++, j+=PART_MAXVAR) { // for every particle# from m to mmax-1,
+          // get position
+          var pos = [s[j + PART_XPOS], s[j + PART_YPOS], s[j + PART_ZPOS]];
+
+          var force_magn = 1.0;
+          // calculate force vector
+          //var forcetmp = [-1 * force_magn * pos[0], -1 * force_magn * 1/Math.sqrt(pos[0]*pos[0]+pos[2]*pos[2]), -1 * force_magn * pos[2]];
+          var force_arr = [-1 * force_magn * pos[0], -1 * force_magn * pos[1], -1 * force_magn * pos[2]];
+          var force_vec = new Vector3(force_arr);
+          var vert_vec = new Vector3([0,1,0]);
+          var forcetmp = force_vec.cross(vert_vec).elements;
+
+          s[j + PART_Y_FTOT] += 5.0 + 3.0 * Math.sqrt(forcetmp[0] * forcetmp[0] + forcetmp[2] * forcetmp[2]);
+          s[j + PART_X_FTOT] +=  forcetmp[0] - pos[0];
+          s[j + PART_Z_FTOT] +=  forcetmp[2] - pos[2];
+          /*
+          if (-0.2 < pos[0] && pos[0] < 0.2 && -0.2 < pos[2] && pos[2] < 0.2) {
+            //s[j + PART_Y_FTOT] += 20.0;
+            s[j + PART_Y_FTOT] += 50.0 * 1 / Math.sqrt(5 * forcetmp[0] * 5 * forcetmp[0] + 5 * forcetmp[1] * 5 * forcetmp[1]);
+            s[j + PART_X_FTOT] -= 5 * forcetmp[0];
+            s[j + PART_Z_FTOT] -= 5 * forcetmp[2];
+          }
+          else {
+            s[j + PART_X_FTOT] += 5 * forcetmp[0];
+            s[j + PART_Z_FTOT] += 5 *forcetmp[2];
+          }*/
+
+          // apply force
+          //s[j + PART_X_FTOT] += forcetmp[0];
+          //s[j + PART_Y_FTOT] += forcetmp[1];
+          //s[j + PART_Z_FTOT] += forcetmp[2];
+        }
         break;
       case F_BUBBLE:    // Constant inward force (bub_force)to a 3D centerpoint 
                         // bub_ctr if particle is > bub_radius away from it.
