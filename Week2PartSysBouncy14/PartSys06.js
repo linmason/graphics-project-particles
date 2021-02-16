@@ -500,6 +500,22 @@ PartSys.prototype.initFireReeves = function(gl, count) {
                                   // (and IGNORE all other CLimit members...)
   this.limitList.push(cTmp);      // append this 'box' constraint object to the
                                   // 'limitList' array of constraint-causing objects.
+
+  var cTmp = new CLimit();      // creat constraint-causing object, and
+  cTmp.hitType = HIT_BOUNCE_VEL;  // set how particles 'bounce' from its surface,
+  cTmp.limitType = LIM_BALL;       // confine particles inside axis-aligned 
+                                  // rectangular volume that
+  cTmp.targFirst = 0;             // applies to ALL particles; starting at 0 
+  cTmp.partCount = -1;            // through all the rest of them.
+  cTmp.xMin = 0.0;
+  cTmp.yMin = 0.0;
+  cTmp.zMin = 0.0;
+  cTmp.radius = 0.5;
+  cTmp.Kresti = 1.0;              // bouncyness: coeff. of restitution.
+                                  // (and IGNORE all other CLimit members...)
+  this.limitList.push(cTmp);      // append this 'box' constraint object to the
+                                  // 'limitList' array of constraint-causing objects.
+
 /*
   var cTmp = new CLimit();      // creat constraint-causing object, and
   cTmp.hitType = HIT_BOUNCE_VEL;  // set how particles 'bounce' from its surface,
@@ -993,7 +1009,7 @@ PartSys.prototype.initSpringRope = function(gl, count) {
   cTmp.partCount = -1;            // through all the rest of them.
   cTmp.Kresti = 1.0;              // bouncyness: coeff. of restitution.
                                   // (and IGNORE all other CLimit members...)
-  var W_vec = [0, -1, 0];
+  var W_vec = [0, -3, 0];
   var L_vec = new Vector3([0, 1, 1]);
   var M_vec = new Vector3([-1, 0, 0]);
   cTmp.Lmax = 5.0;
@@ -1718,6 +1734,39 @@ PartSys.prototype.doConstraints = function(sNow, sNext, cList) {
         break;
       case LIM_BOX:
         break;
+      case LIM_BALL:
+        // for each particle
+        var j = m*PART_MAXVAR;  // state var array index for particle # m
+        for(var i = 0; i < mmax; i += 1, j+= PART_MAXVAR) {
+          // find delta x,y,z using xMin,yMin,zMin as center
+          var delt = [this.s2[j+PART_XPOS]-cList[k].xMin, this.s2[j+PART_YPOS]-cList[k].yMin, this.s2[j+PART_ZPOS]-cList[k].zMin];
+          var neg_delt = [cList[k].xMin-this.s2[j+PART_XPOS],cList[k].yMin-this.s2[j+PART_YPOS],cList[k].zMin-this.s2[j+PART_ZPOS]]
+
+          // find normalized dx,dy,dz vector
+          var norm_delt = new Vector3(delt);
+          norm_delt = norm_delt.normalize();
+
+          // find negated normalized delta vector
+          var neg_norm_delt = new Vector3(neg_delt);
+          neg_norm_delt = neg_norm_delt.normalize();
+
+          // if magnitude of delta vector < radius
+          if (Math.sqrt(delt[0]*delt[0] + delt[1]*delt[1] + delt[2]*delt[2]) <= cList[k].radius) {
+            // turn velo to vector3
+            var Velo = new Vector3([this.s2[j + PART_XVEL], this.s2[j + PART_YVEL], this.s2[j + PART_ZVEL]]);
+
+            // find component of velocity normal to sphere surface
+            var V_dot_N = Velo.dot(neg_norm_delt);
+            var norm_V = [V_dot_N*neg_norm_delt.elements[0], V_dot_N*neg_norm_delt.elements[1], V_dot_N*neg_norm_delt.elements[2]];
+
+            // ?? reset position to sphere surface
+            // remove normal component of velocity in s2
+            this.s2[j + PART_XVEL] -= 2 * norm_V[0];
+            this.s2[j + PART_YVEL] -= 2 * norm_V[1];
+            this.s2[j + PART_ZVEL] -= 2 * norm_V[2];
+          }
+        }
+        break;
       case LIM_MAT_WALL:
         var j = m*PART_MAXVAR;  // state var array index for particle # m
         var p1 = new Vector4();
@@ -1747,6 +1796,7 @@ PartSys.prototype.doConstraints = function(sNow, sNext, cList) {
               var v2 = [this.s2[j + PART_XVEL], this.s2[j + PART_YVEL], this.s2[j + PART_ZVEL]];
               var v_dot_n = v2[0]*cList[k].N_vec.elements[0] + v2[1]*cList[k].N_vec.elements[1] + v2[2]*cList[k].N_vec.elements[2];
               if (v_dot_n < 0) {
+                // reset position?
                 this.s2[j + PART_XVEL] -= 2 * v_dot_n * cList[k].N_vec.elements[0];
                 this.s2[j + PART_YVEL] -= 2 * v_dot_n * cList[k].N_vec.elements[1];
                 this.s2[j + PART_ZVEL] -= 2 * v_dot_n * cList[k].N_vec.elements[2];
