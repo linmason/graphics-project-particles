@@ -459,6 +459,8 @@ PartSys.prototype.initFireReeves = function(gl, count) {
   this.s2dot = new Float32Array(this.partCount * PART_MAXVAR);  
         // NOTE: Float32Array objects are zero-filled by default.
 
+  this.isFountain = 1;
+
   // Create & init all force-causing objects------------------------------------
   var fTmp = new CForcer();       // create a force-causing object, and
   // earth gravity for all particles:
@@ -1154,7 +1156,7 @@ PartSys.prototype.initSpringRope = function(gl, count) {
     fTmp.e1 = i;
     fTmp.e2 = i+1;
     fTmp.K_spring = 20.0;
-    fTmp.K_springDamp = 0.15;
+    fTmp.K_springDamp = 0.11;
     fTmp.K_restLength = 1.0;
                                     // (and IGNORE all other Cforcer members...)
     this.forceList.push(fTmp);      // append this 'gravity' force object to 
@@ -1813,7 +1815,7 @@ PartSys.prototype.doConstraints = function(sNow, sNext, cList) {
         this.s2.set(this.s1);   // COPY contents of state-vector s1 to s2.
       }
     }
-    if (this.partSysType == "Bouncy2D" || this.partSysType == "Tornado") {
+    if (this.partSysType == "Bouncy2D") {
       var j=0; // array index for particle i
         for(var i = 0; i < g_partA.partCount; i += 1, j+= PART_MAXVAR) {
           this.roundRand();  // make a spherical random var.

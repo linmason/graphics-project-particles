@@ -908,7 +908,7 @@ function printControls() {
       solvTypeTxt = 'Old Good Implicit Euler<br>';
       break;
     case 5:
-      solvTypeTxt = 'Implicit Euler<br>';
+      solvTypeTxt = 'Implicit Euler(unstable!)<br>';
       break;
     case 6:
       solvTypeTxt = 'Implicit Midpoint<br>';
@@ -940,12 +940,12 @@ function printControls() {
 	document.getElementById('KeyControls').innerHTML = 
    			'<b>Solver = </b>' + solvTypeTxt + 
    			'<b>Fire =</b>' + fountainText +
-   			'<b>yVel = +/-</b> ' + yvLimit.toFixed(5) + 
-   			' m/s; <b>xVel = +/-</b> ' + xvLimit.toFixed(5) + 
-   			' m/s;<br><b>timeStep = </b> 1/' + recipTime.toFixed(3) + ' sec' +
+//   			'<b>yVel = +/-</b> ' + yvLimit.toFixed(5) + 
+//   			' m/s; <b>xVel = +/-</b> ' + xvLimit.toFixed(5) + 
+   			' <br><b>timeStep = </b> 1/' + recipTime.toFixed(3) + ' sec' +
    			                ' <b>min:</b> 1/' + recipMin.toFixed(3)  + ' sec' + 
    			                ' <b>max:</b> 1/' + recipMax.toFixed(3)  + ' sec<br>';
-   			' <b>stepCount: </b>' + g_stepCount.toFixed(3) ;
+//   			' <b>stepCount: </b>' + g_stepCount.toFixed(3) ;
 }
 
 
