@@ -379,6 +379,17 @@ function drawAll() {
   boxBox.adjust(modelMat);      // Send new values for uniforms to the GPU, and
   boxBox.draw();        // draw our VBO's contents using our shaders.
 
+  boxBox.switchToMe();  // Set WebGL to render from this VBObox.
+  modelMat = new Matrix4();
+  modelMat.set(g_ModelMat);
+  modelMat.translate(3,6,3,1);
+  modelMat.translate(0, 0, 1, 1);
+  modelMat.translate(0, -3, 0, 1);
+  modelMat.rotate(-45, 1, 0, 0);
+  modelMat.scale(5.0, 5.0, 0.01);
+  boxBox.adjust(modelMat);      // Send new values for uniforms to the GPU, and
+  boxBox.draw();        // draw our VBO's contents using our shaders.
+
   //--------------------- first particle system update
   if(g_partA.runMode > 1) {					// 0=reset; 1= pause; 2=step; 3=run
     // YES! advance particle system(s) by 1 timestep.
