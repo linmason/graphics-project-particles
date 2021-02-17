@@ -438,7 +438,8 @@ PartSys.prototype.initFireReeves = function(gl, count) {
   'varying vec4 v_Color; \n' +
   'void main() {\n' +
   '  float dist = distance(gl_PointCoord, vec2(0.5, 0.5)); \n' + 
-  '  if(dist < 0.5) { \n' + 
+  //'  if(dist < 0.5) { \n' + 
+  '  if( 0.4 < gl_PointCoord.s && gl_PointCoord.s < 0.6 || 0.4 < gl_PointCoord.t && gl_PointCoord.t < 0.6) { \n' + 
   '   gl_FragColor = vec4((1.0-2.0*dist)*v_Color.rgb, 1.0);\n' +
   '   gl_FragColor = v_Color;\n' +
   '  } else { discard; }\n' +
@@ -1153,7 +1154,7 @@ PartSys.prototype.initSpringRope = function(gl, count) {
     fTmp.e1 = i;
     fTmp.e2 = i+1;
     fTmp.K_spring = 20.0;
-    fTmp.K_springDamp = 0.1;
+    fTmp.K_springDamp = 0.15;
     fTmp.K_restLength = 1.0;
                                     // (and IGNORE all other Cforcer members...)
     this.forceList.push(fTmp);      // append this 'gravity' force object to 
