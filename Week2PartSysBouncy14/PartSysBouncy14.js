@@ -106,6 +106,8 @@ var g_partB = new PartSys();
 var g_partC = new PartSys();
 
 worldBox = new VBObox0();     // Holds VBO & shaders for 3D 'world' ground-plane grid, etc;
+circleBox = new VBOboxSphere();     // Holds VBO & shaders for 3D 'world' ground-plane grid, etc;
+boxBox = new VBOboxBox();     // Holds VBO & shaders for 3D 'world' ground-plane grid, etc;
 
 
 function main() {
@@ -182,6 +184,9 @@ function main() {
   g_partC.initTornado(gl, 300);
 
   worldBox.init(gl);    // VBO + shaders + uniforms + attribs for our 3D world,
+  circleBox.init(gl);
+  boxBox.init(gl);
+
 
   gl.clearColor(0.25, 0.25, 0.25, 1);	// RGBA color for clearing WebGL framebuffer
   gl.clear(gl.COLOR_BUFFER_BIT);		  // clear it once to set that color as bkgnd.
@@ -340,6 +345,40 @@ function drawAll() {
   worldBox.adjust(g_ModelMat);      // Send new values for uniforms to the GPU, and
   worldBox.draw();        // draw our VBO's contents using our shaders.
 
+  circleBox.switchToMe();  // Set WebGL to render from this VBObox.
+  modelMat = new Matrix4();
+  modelMat.set(g_ModelMat);
+  modelMat.translate(3,-3,1,1);
+  modelMat.translate(0, 0, 2, 1);
+  modelMat.scale(2.0, 2.0, 2.0)
+  circleBox.adjust(modelMat);      // Send new values for uniforms to the GPU, and
+  circleBox.draw();        // draw our VBO's contents using our shaders.
+
+  boxBox.switchToMe();  // Set WebGL to render from this VBObox.
+  modelMat = new Matrix4();
+  modelMat.set(g_ModelMat);
+  modelMat.translate(3,-3,1,1);
+  modelMat.translate(0, 0, 1, 1);
+  modelMat.scale(2.0, 2.0, 2.0)
+  boxBox.adjust(modelMat);      // Send new values for uniforms to the GPU, and
+  boxBox.draw();        // draw our VBO's contents using our shaders.
+
+  boxBox.switchToMe();  // Set WebGL to render from this VBObox.
+  modelMat = new Matrix4();
+  modelMat.set(g_ModelMat);
+  modelMat.translate(0, 0, 1, 1);
+  boxBox.adjust(modelMat);      // Send new values for uniforms to the GPU, and
+  boxBox.draw();        // draw our VBO's contents using our shaders.
+
+  boxBox.switchToMe();  // Set WebGL to render from this VBObox.
+  modelMat = new Matrix4();
+  modelMat.set(g_ModelMat);
+  modelMat.translate(3,6,3,1);
+  modelMat.translate(0, 0, 1, 1);
+  modelMat.scale(5.0, 5.0, 5.0);
+  boxBox.adjust(modelMat);      // Send new values for uniforms to the GPU, and
+  boxBox.draw();        // draw our VBO's contents using our shaders.
+
   //--------------------- first particle system update
   if(g_partA.runMode > 1) {					// 0=reset; 1= pause; 2=step; 3=run
     // YES! advance particle system(s) by 1 timestep.
@@ -383,7 +422,7 @@ function drawAll() {
 
     modelMat = new Matrix4();
     modelMat.set(g_ModelMat)
-    modelMat.translate(5,5,0,1);
+    modelMat.translate(3,6,3,1);
     g_partB.render(modelMat);         // transfer current state to VBO, set uniforms, draw it!
 
     g_partB.swap();           // Make s2 the new current state s1.s
@@ -405,7 +444,7 @@ function drawAll() {
 
     modelMat = new Matrix4();
     modelMat.set(g_ModelMat)
-    modelMat.translate(3,-3,0,1);
+    modelMat.translate(3,-3,1,1);
     g_partC.render(modelMat);         // transfer current state to VBO, set uniforms, draw it!
 
     g_partC.swap();           // Make s2 the new current state s1.s
