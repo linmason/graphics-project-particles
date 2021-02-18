@@ -103,8 +103,11 @@ var g_zOffsetRate = 0;
 var g_partA = new PartSys();   // create our first particle-system object;
                               // for code, see PartSys.js
 var g_partB = new PartSys();
+var g_partC = new PartSys();
 
 worldBox = new VBObox0();     // Holds VBO & shaders for 3D 'world' ground-plane grid, etc;
+circleBox = new VBOboxSphere();     // Holds VBO & shaders for 3D 'world' ground-plane grid, etc;
+boxBox = new VBOboxBox();     // Holds VBO & shaders for 3D 'world' ground-plane grid, etc;
 
 
 function main() {
@@ -173,14 +176,17 @@ function main() {
   //}
 
   // Initialize Particle systems:
-  g_partA.initFireReeves(gl, 200);
+  g_partA.initFireReeves(gl, 600);
   //g_partA.initBouncy2D(gl, 200);        // create a 2D bouncy-ball system where
                                     // 2 particles bounce within -0.9 <=x,y<0.9
                                     // and z=0.
   g_partB.initSpringRope(gl, 10);
-
+  g_partC.initTornado(gl, 300);
 
   worldBox.init(gl);    // VBO + shaders + uniforms + attribs for our 3D world,
+  circleBox.init(gl);
+  boxBox.init(gl);
+
 
   gl.clearColor(0.25, 0.25, 0.25, 1);	// RGBA color for clearing WebGL framebuffer
   gl.clear(gl.COLOR_BUFFER_BIT);		  // clear it once to set that color as bkgnd.
@@ -339,6 +345,51 @@ function drawAll() {
   worldBox.adjust(g_ModelMat);      // Send new values for uniforms to the GPU, and
   worldBox.draw();        // draw our VBO's contents using our shaders.
 
+  circleBox.switchToMe();  // Set WebGL to render from this VBObox.
+  modelMat = new Matrix4();
+  modelMat.set(g_ModelMat);
+  modelMat.translate(3,-3,1,1);
+  modelMat.translate(0, 0, 2, 1);
+  modelMat.scale(2.0, 2.0, 2.0)
+  circleBox.adjust(modelMat);      // Send new values for uniforms to the GPU, and
+  circleBox.draw();        // draw our VBO's contents using our shaders.
+
+  boxBox.switchToMe();  // Set WebGL to render from this VBObox.
+  modelMat = new Matrix4();
+  modelMat.set(g_ModelMat);
+  modelMat.translate(3,-3,1,1);
+  modelMat.translate(0, 0, 1, 1);
+  modelMat.scale(2.0, 2.0, 2.0)
+  boxBox.adjust(modelMat);      // Send new values for uniforms to the GPU, and
+  boxBox.draw();        // draw our VBO's contents using our shaders.
+
+  boxBox.switchToMe();  // Set WebGL to render from this VBObox.
+  modelMat = new Matrix4();
+  modelMat.set(g_ModelMat);
+  modelMat.translate(0, 0, 1, 1);
+  boxBox.adjust(modelMat);      // Send new values for uniforms to the GPU, and
+  boxBox.draw();        // draw our VBO's contents using our shaders.
+
+  boxBox.switchToMe();  // Set WebGL to render from this VBObox.
+  modelMat = new Matrix4();
+  modelMat.set(g_ModelMat);
+  modelMat.translate(3,6,3,1);
+  modelMat.translate(0, 0, 1, 1);
+  modelMat.scale(5.0, 5.0, 5.0);
+  boxBox.adjust(modelMat);      // Send new values for uniforms to the GPU, and
+  boxBox.draw();        // draw our VBO's contents using our shaders.
+
+  boxBox.switchToMe();  // Set WebGL to render from this VBObox.
+  modelMat = new Matrix4();
+  modelMat.set(g_ModelMat);
+  modelMat.translate(3,6,3,1);
+  modelMat.translate(0, 0, 1, 1);
+  modelMat.translate(0, -3, 0, 1);
+  modelMat.rotate(-45, 1, 0, 0);
+  modelMat.scale(5.0, 5.0, 0.01);
+  boxBox.adjust(modelMat);      // Send new values for uniforms to the GPU, and
+  boxBox.draw();        // draw our VBO's contents using our shaders.
+
   //--------------------- first particle system update
   if(g_partA.runMode > 1) {					// 0=reset; 1= pause; 2=step; 3=run
     // YES! advance particle system(s) by 1 timestep.
@@ -382,7 +433,7 @@ function drawAll() {
 
     modelMat = new Matrix4();
     modelMat.set(g_ModelMat)
-    modelMat.translate(5,5,0,1);
+    modelMat.translate(3,6,3,1);
     g_partB.render(modelMat);         // transfer current state to VBO, set uniforms, draw it!
 
     g_partB.swap();           // Make s2 the new current state s1.s
@@ -390,6 +441,29 @@ function drawAll() {
   else {
     g_partB.render(g_ModelMat);
   }
+
+  //--------------- Third Particle System Update
+  if (g_partC.runMode > 1) {
+    if (g_partC.runMode == 2) {
+      g_partC.runMode=1;
+    }
+
+    g_partC.applyForces(g_partC.s1, g_partC.forceList);  // find current net force on each particle
+    g_partC.dotFinder(g_partC.s1dot, g_partC.s1); // find time-derivative s1dot from s1;
+    g_partC.solver();         // find s2 from s1 & related states.
+    g_partC.doConstraints(g_partC.s1, g_partC.s2, g_partC.limitList);  // Apply all constraints.  s2 is ready!
+
+    modelMat = new Matrix4();
+    modelMat.set(g_ModelMat)
+    modelMat.translate(3,-3,1,1);
+    g_partC.render(modelMat);         // transfer current state to VBO, set uniforms, draw it!
+
+    g_partC.swap();           // Make s2 the new current state s1.s
+  }
+  else {
+    g_partC.render(g_ModelMat);
+  }
+
 	printControls();		// Display particle-system status on-screen. 
                       // Report mouse-drag totals since last re-draw:
 	document.getElementById('MouseResult0').innerHTML=
@@ -553,6 +627,7 @@ function myKeyDown(kev) {
     case "Digit0":
 			g_partA.runMode = 0;			// RESET!
       g_partB.runMode = 0;
+      g_partC.runMode = 0;
 			document.getElementById('KeyDown').innerHTML =  
 			'myKeyDown() digit 0 key. Run Mode 0: RESET!';    // print on webpage,
 			console.log("Run Mode 0: RESET!");                // print on console.
@@ -560,6 +635,7 @@ function myKeyDown(kev) {
     case "Digit1":
 			g_partA.runMode = 1;			// PAUSE!
       g_partB.runMode = 1;
+      g_partC.runMode = 1;
 			document.getElementById('KeyDown').innerHTML =  
 			'myKeyDown() digit 1 key. Run Mode 1: PAUSE!';    // print on webpage,
 			console.log("Run Mode 1: PAUSE!");                // print on console.
@@ -567,6 +643,7 @@ function myKeyDown(kev) {
     case "Digit2":
 			g_partA.runMode = 2;			// STEP!
       g_partB.runMode = 2;
+      g_partC.runMode = 2;
 			document.getElementById('KeyDown').innerHTML =  
 			'myKeyDown() digit 2 key. Run Mode 2: STEP!';     // print on webpage,
 			console.log("Run Mode 2: STEP!");                 // print on console.
@@ -633,6 +710,8 @@ function myKeyDown(kev) {
 						  else g_partA.runMode = 3;		          // if paused, run.
     if(g_partB.runMode == 3) g_partB.runMode = 1;   // if running, pause
               else g_partB.runMode = 3;             // if paused, run.
+    if(g_partC.runMode == 3) g_partC.runMode = 1;   // if running, pause
+              else g_partC.runMode = 3;             // if paused, run.
 	  document.getElementById('KeyDown').innerHTML =  
 			  'myKeyDown() p/P key: toggle Pause/unPause!';    // print on webpage
 	  console.log("p/P key: toggle Pause/unPause!");   			// print on console,
@@ -659,6 +738,7 @@ function myKeyDown(kev) {
     			else g_partA.s2[j + PART_ZVEL] -= 1.7 + 0.4*g_partA.randZ*g_partA.INIT_VEL;
     		}*/
         g_partB.refresh = true;
+        g_partC.refresh = true;
         /*
         //---- refresh partsys B spring pair
         g_partB.runMode = 3;  // RUN!
@@ -706,6 +786,7 @@ function myKeyDown(kev) {
       solvIndex = (solvIndex + 1) % solvTypes.length;
       g_partA.solvType = solvTypes[solvIndex];
       g_partB.solvType = solvTypes[solvIndex];
+      g_partC.solvType = solvTypes[solvIndex];
 			document.getElementById('KeyDown').innerHTML =  
 			'myKeyDown() found v/V key. Switch solvers!';       // print on webpage.
 		  console.log("v/V: Change Solver:", g_partB.solvType); // print on console.
@@ -713,6 +794,7 @@ function myKeyDown(kev) {
     case "KeyN":
       g_partA.push = true;
       g_partB.push = true;
+      g_partC.push = true;
       console.log("keydown KeyN")
       break;
 		case "Space":
@@ -795,6 +877,7 @@ function myKeyUp(kev) {
     case "KeyN":
       g_partA.push = false;
       g_partB.push = false;
+      g_partC.push = false;
       break;
     default:
       break;
@@ -825,7 +908,7 @@ function printControls() {
       solvTypeTxt = 'Old Good Implicit Euler<br>';
       break;
     case 5:
-      solvTypeTxt = 'Implicit Euler<br>';
+      solvTypeTxt = 'Implicit Euler(unstable!)<br>';
       break;
     case 6:
       solvTypeTxt = 'Implicit Midpoint<br>';
@@ -857,12 +940,12 @@ function printControls() {
 	document.getElementById('KeyControls').innerHTML = 
    			'<b>Solver = </b>' + solvTypeTxt + 
    			'<b>Fire =</b>' + fountainText +
-   			'<b>yVel = +/-</b> ' + yvLimit.toFixed(5) + 
-   			' m/s; <b>xVel = +/-</b> ' + xvLimit.toFixed(5) + 
-   			' m/s;<br><b>timeStep = </b> 1/' + recipTime.toFixed(3) + ' sec' +
+//   			'<b>yVel = +/-</b> ' + yvLimit.toFixed(5) + 
+//   			' m/s; <b>xVel = +/-</b> ' + xvLimit.toFixed(5) + 
+   			' <br><b>timeStep = </b> 1/' + recipTime.toFixed(3) + ' sec' +
    			                ' <b>min:</b> 1/' + recipMin.toFixed(3)  + ' sec' + 
    			                ' <b>max:</b> 1/' + recipMax.toFixed(3)  + ' sec<br>';
-   			' <b>stepCount: </b>' + g_stepCount.toFixed(3) ;
+//   			' <b>stepCount: </b>' + g_stepCount.toFixed(3) ;
 }
 
 
